@@ -1,0 +1,46 @@
+.app {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+
+	background: linear-gradient(
+		to bottom right,
+		var(--color-primary-500),
+		var(--color-secondary-900)
+	);
+	height: 100vh;
+}
+
+.pdfContainer {
+	width: 100vw;
+	height: 100vh;
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 1rem;
+}
+
+.img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+
+.downloadLink {
+	position: absolute;
+	top: 1rem;
+	right: 1rem;
+	/* give button style */
+	background-color: var(--color-primary-500);
+	color: white;
+	padding: 0.5rem 1rem;
+	border-radius: 0.5rem;
+	text-decoration: none;
+
+	&.downloadLinkPng {
+		background-color: var(--color-secondary-500);
+		top: 4rem;
+	}
+}
