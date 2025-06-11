@@ -110,15 +110,18 @@ export function drawTextArea(
 	for (let i = 0; i < renderLines.length; i++) {
 		const line = renderLines[i];
 		const lh = renderLineHeights[i];
-		const lineWidth = line.reduce((sum, p) => sum + partWidth(p), 0);
-		const maxFontSize = Math.max(...line.map((p) => p.fontSize || defaultFontSize));
+		const groupedLine = groupPartsByStyle(line);
+		const lineWidth = groupedLine.reduce((sum, p) => sum + partWidth(p), 0);
+		const maxFontSize = Math.max(
+			...groupedLine.map((p) => p.fontSize || defaultFontSize)
+		);
 		let xCursor = boxLeft;
 		if (align === 'center') {
 			xCursor = boxLeft + (boxWidth - lineWidth) / 2;
 		} else if (align === 'right') {
 			xCursor = boxLeft + (boxWidth - lineWidth);
 		}
-		for (const part of line) {
+		for (const part of groupedLine) {
 			const partFontSize = part.fontSize || defaultFontSize;
 			page.drawText(part.text, {
 				x: xCursor,
@@ -155,4 +158,27 @@ export function drawTextArea(
 			renderedLines: renderLines.length,
 		});
 	}
+}
+
+// Helper to group consecutive TextParts with the same style
+function groupPartsByStyle(parts: TextPart[]): TextPart[] {
+	const grouped: TextPart[] = [];
+	let current: TextPart | null = null;
+
+	for (const part of parts) {
+		if (
+			current &&
+			part.font === current.font &&
+			part.fontSize === current.fontSize &&
+			JSON.stringify(part.color) === JSON.stringify(current.color) &&
+			part.opacity === current.opacity
+		) {
+			current.text += part.text;
+		} else {
+			if (current) grouped.push(current);
+			current = { ...part };
+		}
+	}
+	if (current) grouped.push(current);
+	return grouped;
 }
