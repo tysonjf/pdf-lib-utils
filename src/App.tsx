@@ -3,15 +3,15 @@ import fontkit from '@pdf-lib/fontkit';
 import { useEffect, useState } from 'react';
 import styles from './app.module.css';
 import {
-	sampleRects,
 	sampleTextOptions,
 	sampleTextParts1,
 	sampleTextParts2,
 	sampleTextParts3,
-} from './test-data/pdf-engine-test-data';
+	sampleTextParts4,
+} from './test-data/data';
+import { drawTextArea } from './utils/draw-text-area';
 import { PathBuilder } from './utils/pathBuilder';
 import { pdfToImage } from './utils/pdfToImage';
-import { drawTextArea } from './utils/text-utils';
 
 function App() {
 	const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -19,7 +19,12 @@ function App() {
 	const [textPartsIdx, setTextPartsIdx] = useState(0);
 	const [alignIdx, setAlignIdx] = useState(0);
 
-	const textPartsFns = [sampleTextParts1, sampleTextParts2, sampleTextParts3];
+	const textPartsFns = [
+		sampleTextParts1,
+		sampleTextParts2,
+		sampleTextParts3,
+		sampleTextParts4,
+	];
 
 	useEffect(() => {
 		async function main() {
@@ -88,7 +93,7 @@ function App() {
 			<div className={styles.app}>
 				<div style={{ marginBottom: 16 }}>
 					<label>Text Data:&nbsp;</label>
-					{['Sample 1', 'Sample 2', 'Sample 3'].map((label, idx) => (
+					{['Sample 1', 'Sample 2', 'Sample 3', 'Sample 4'].map((label, idx) => (
 						<button
 							key={label}
 							onClick={() => setTextPartsIdx(idx)}

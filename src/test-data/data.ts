@@ -1,5 +1,6 @@
 import { cmyk, grayscale, rgb, type PDFFont } from '@cantoo/pdf-lib';
-import type { DrawTextPartsOptions, TextPart } from '../utils/text-utils';
+import type { DrawTextAreaOptions } from '../utils/draw-text-area';
+import type { TextPart } from '../utils/text-metrics';
 
 export function sampleTextParts1(font: PDFFont): TextPart[] {
 	return [
@@ -13,14 +14,14 @@ export function sampleTextParts1(font: PDFFont): TextPart[] {
 			opacity: 0.8,
 		},
 		{
-			text: 'New line here.',
+			text: 'New line here. ',
 			font,
 			newLine: true,
 			fontSize: 18,
 			color: rgb(0, 0.8, 0.4),
 		},
 		{
-			text: 'This should be on a new line,',
+			text: 'same new line as the previous line. ',
 			font,
 			fontSize: 14,
 			color: cmyk(1, 0.5, 0, 0.2),
@@ -77,13 +78,74 @@ export function sampleTextParts3(font: PDFFont): TextPart[] {
 	];
 }
 
-export const sampleTextOptions: DrawTextPartsOptions[] = [
-	{ wrap: true, align: 'left', verticalAlign: 'top', lineHeight: 2 },
-	{ wrap: true, align: 'center', verticalAlign: 'top' },
-	{ wrap: true, align: 'right', verticalAlign: 'top' },
-	{ wrap: true, align: 'justify-parts', verticalAlign: 'top' },
-	{ wrap: true, align: 'justify-words', verticalAlign: 'top' },
+export function sampleTextParts4(font: PDFFont): TextPart[] {
+	return [
+		{ text: 'Mobile', font, fontSize: 12, color: cmyk(0, 0, 0, 1), opacity: 0.5 },
+		{ text: '0403 123 456', font, fontSize: 12, color: cmyk(0, 0, 0, 1) },
+		// new line
+		{
+			text: 'Email',
+			font,
+			fontSize: 12,
+			color: cmyk(0, 0, 0, 1),
+			newLine: true,
+			opacity: 0.5,
+		},
+		{ text: 'hello@example.com', font, fontSize: 12, color: cmyk(0, 0, 0, 1) },
+		// new line
+		{
+			text: 'Address',
+			font,
+			fontSize: 12,
+			color: cmyk(0, 0, 0, 1),
+			newLine: true,
+			opacity: 0.5,
+		},
+		{ text: '123 Main St, Anytown, USA', font, fontSize: 12, color: cmyk(0, 0, 0, 1) },
+	];
+}
+
+export function sampleTextPartsOverflow(font: PDFFont): TextPart[] {
+	// 30 lines, each with newLine:true, to guarantee overflow in most containers
+	const arr: TextPart[] = [];
+	for (let i = 1; i <= 30; i++) {
+		arr.push({
+			text: `Overflow line ${i} - Lorem ipsum dolor sit amet, consectetur adipiscing elit.`,
+			font,
+			fontSize: 18,
+			color: i % 2 === 0 ? cmyk(0, 1, 0, 0) : grayscale(0.2 + (i % 5) * 0.15),
+			newLine: true,
+		});
+	}
+	return arr;
+}
+
+export const sampleTextOptions: DrawTextAreaOptions[] = [
+	{ autoWrap: true, align: 'left', verticalAlign: 'top', lineHeight: 2 },
+	{ autoWrap: true, align: 'center', verticalAlign: 'top' },
+	{ autoWrap: true, align: 'right', verticalAlign: 'top' },
 ];
+
+export const sampleTextOptionsOverflow: DrawTextAreaOptions = {
+	autoWrap: true,
+	align: 'left',
+	verticalAlign: 'top',
+	lineHeight: 2,
+	clipOverflow: true,
+	onOverflow: ({ overflowedLines, overflowedLineIndices, totalLines, renderedLines }) => {
+		if (overflowedLines.length > 0) {
+			console.log(
+				`Text overflow: ${
+					totalLines - renderedLines
+				} line(s) not rendered. (Indices: ${overflowedLineIndices.join(', ')})`
+			);
+			const allText = overflowedLines
+				.map((line) => line.map((p) => p.text).join(' '))
+				.join(' ');
+			console.log('Overflowed text:', allText);
+		}
+	},
+};
 
 export const sampleRects: {
 	x: number;
