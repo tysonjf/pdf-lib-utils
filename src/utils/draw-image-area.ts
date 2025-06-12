@@ -1,0 +1,136 @@
+import { PDFImage, PDFPage, popGraphicsState, rgb } from '@cantoo/pdf-lib';
+import { PathBuilder } from './pathBuilder';
+
+export type DrawImageAreaOptions = {
+	clipShape?: 'rect' | 'ellipse'; // default: 'rect'
+	fit?: 'cover' | 'contain' | 'fill'; // default: 'cover'
+	offsetX?: number; // -1 to 1, percent from center, default 0
+	offsetY?: number; // -1 to 1, percent from center, default 0
+	opacity?: number;
+	debug?: boolean; // draw the clip area border
+};
+
+/**
+ * Draws an image clipped to a rect or ellipse, with fitting and offset options.
+ * @param page PDFPage
+ * @param image PDFImage (from embedPng/embedJpg)
+ * @param x left of clip area
+ * @param y top of clip area (from top of page)
+ * @param width width of clip area
+ * @param height height of clip area
+ * @param options DrawImageAreaOptions
+ */
+export function drawImageArea(
+	page: PDFPage,
+	image: PDFImage,
+	x: number,
+	y: number,
+	width: number,
+	height: number,
+	options: DrawImageAreaOptions = {}
+) {
+	const pageHeight = page.getHeight();
+	const boxLeft = x;
+	const boxTop = pageHeight - y;
+	const boxWidth = width;
+	const boxHeight = height;
+	const boxBottom = boxTop - boxHeight;
+
+	const {
+		clipShape = 'rect',
+		fit = 'cover',
+		offsetX = 0,
+		offsetY = 0,
+		opacity = 1,
+		debug = false,
+	} = options;
+
+	// 1. Push clipping path
+	if (clipShape === 'ellipse') {
+		page.pushOperators(
+			...PathBuilder.ellipseClip(
+				boxLeft + boxWidth / 2,
+				boxTop - boxHeight / 2,
+				boxWidth / 2,
+				boxHeight / 2
+			)
+		);
+	} else {
+		page.pushOperators(
+			...PathBuilder.rectClip(boxLeft, boxTop - boxHeight, boxWidth, boxHeight)
+		);
+	}
+
+	// 2. Compute image fitting
+	const imgW = image.width;
+	const imgH = image.height;
+	const areaW = boxWidth;
+	const areaH = boxHeight;
+	let drawW = areaW,
+		drawH = areaH;
+	let scale = 1;
+
+	if (fit === 'cover') {
+		const scaleW = areaW / imgW;
+		const scaleH = areaH / imgH;
+		scale = Math.max(scaleW, scaleH);
+		drawW = imgW * scale;
+		drawH = imgH * scale;
+	} else if (fit === 'contain') {
+		const scaleW = areaW / imgW;
+		const scaleH = areaH / imgH;
+		scale = Math.min(scaleW, scaleH);
+		drawW = imgW * scale;
+		drawH = imgH * scale;
+	} else if (fit === 'fill') {
+		drawW = areaW;
+		drawH = areaH;
+	}
+
+	// 3. Compute offset (offsetX/Y: -1 to 1, percent from center)
+	// 0 = center, -1 = left/top, 1 = right/bottom
+	const maxOffsetX = Math.abs(drawW - areaW) / 2;
+	const maxOffsetY = Math.abs(drawH - areaH) / 2;
+	const offsetXPx = offsetX * maxOffsetX;
+	const offsetYPx = offsetY * maxOffsetY;
+
+	const drawX = boxLeft - (drawW - areaW) / 2 + offsetXPx;
+	const drawY = boxBottom - (drawH - areaH) / 2 + offsetYPx;
+
+	// 4. Draw image
+	page.drawImage(image, {
+		x: drawX,
+		y: drawY,
+		width: drawW,
+		height: drawH,
+		opacity,
+	});
+
+	// 5. Optionally draw debug border
+	if (debug) {
+		if (clipShape === 'ellipse') {
+			page.drawEllipse({
+				x: boxLeft + boxWidth / 2,
+				y: boxTop - boxHeight / 2,
+				xScale: boxWidth / 2,
+				yScale: boxHeight / 2,
+				borderColor: rgb(1, 0, 0),
+				borderWidth: 1,
+				opacity: 0.5,
+			});
+		} else {
+			page.drawRectangle({
+				x: boxLeft,
+				y: boxTop - boxHeight,
+				width: boxWidth,
+				height: boxHeight,
+				borderColor: rgb(1, 0, 0),
+				borderWidth: 1,
+				opacity: 0.5,
+			});
+		}
+	}
+
+	// 6. Pop graphics state
+	page.pushOperators(popGraphicsState());
+}

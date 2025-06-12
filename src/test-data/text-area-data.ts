@@ -121,9 +121,14 @@ export function sampleTextPartsOverflow(font: PDFFont): TextPart[] {
 }
 
 export const sampleTextOptions: DrawTextAreaOptions[] = [
-	{ autoWrap: true, align: 'left', verticalAlign: 'top', lineHeight: 2 },
-	{ autoWrap: true, align: 'center', verticalAlign: 'top' },
-	{ autoWrap: true, align: 'right', verticalAlign: 'top' },
+	{ autoWrap: true, align: 'left', verticalAlign: 'top', lineHeight: 1.5 },
+	{ autoWrap: true, align: 'center', verticalAlign: 'middle', lineHeight: 1.5 },
+	{
+		autoWrap: true,
+		align: 'right',
+		verticalAlign: 'bottom',
+		lineHeight: 1.5,
+	},
 ];
 
 export const sampleTextOptionsOverflow: DrawTextAreaOptions = {

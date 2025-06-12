@@ -8,8 +8,10 @@ import {
 	sampleTextParts2,
 	sampleTextParts3,
 	sampleTextParts4,
-} from './test-data/data';
+} from './test-data/text-area-data';
+import { drawImageArea } from './utils/draw-image-area';
 import { drawTextArea } from './utils/draw-text-area';
+import { drawTextLine } from './utils/draw-text-line';
 import { PathBuilder } from './utils/pathBuilder';
 import { pdfToImage } from './utils/pdfToImage';
 
@@ -41,41 +43,76 @@ function App() {
 			const pageHeight = page.getHeight();
 			const pageWidth = page.getWidth();
 
-			drawTextArea(
+			console.time('⏱️ Drawing Text Area');
+			// drawTextArea(
+			// 	page,
+			// 	textPartsFns[textPartsIdx](EduHandFont),
+			// 	20, // x (mm)
+			// 	30, // y (mm)
+			// 	pageWidth - 40, // width (mm)
+			// 	pageHeight - 60, // height (mm)
+			// 	sampleTextOptions[alignIdx],
+			// 	true
+			// );
+			console.timeEnd('⏱️ Drawing Text Area');
+
+			console.time('⏱️ Drawing Text Line');
+			drawTextLine(
 				page,
-				textPartsFns[textPartsIdx](EduHandFont),
+				[
+					{
+						text: 'Hello World',
+						font: EduHandFont,
+						fontSize: 12,
+					},
+				],
 				20, // x (mm)
 				30, // y (mm)
 				pageWidth - 40, // width (mm)
-				pageHeight - 60, // height (mm)
-				sampleTextOptions[alignIdx],
+				20, // height (mm)
+				{
+					align: 'justifyWords',
+					verticalAlign: 'middle',
+					hideOnOverflow: true,
+					onOverflow: (info) => {
+						console.log(info);
+					},
+					color: rgb(0, 0, 0),
+					opacity: 1,
+				},
 				true
 			);
-
+			console.timeEnd('⏱️ Drawing Text Line');
 			const image = await doc.embedPng(imgBytes);
 
-			// drawEllipse demo
-			const y = 70 + 40;
-			const x = 70 + 40;
-			page.pushOperators(...PathBuilder.ellipseClip(x, y, 70, 70));
-			// Draw the image within the clipping path
-			page.drawImage(image, {
-				x: 40,
-				y: 40,
-				width: 140,
-				height: 140,
-				opacity: 0,
+			drawImageArea(page, image, 20, 50, 200, 100, {
+				opacity: 1,
+				clipShape: 'ellipse',
+				debug: true,
 			});
-			page.drawEllipse({
-				x: x,
-				y: y,
-				xScale: 70,
-				yScale: 70,
-				borderColor: rgb(1, 1, 0),
-				borderOpacity: 0,
-				opacity: 0,
-			});
-			page.pushOperators(popGraphicsState());
+
+			// // drawEllipse demo
+			// const y = 70 + 40;
+			// const x = 70 + 40;
+			// page.pushOperators(...PathBuilder.ellipseClip(x, y, 70, 70));
+			// // Draw the image within the clipping path
+			// page.drawImage(image, {
+			// 	x: 40,
+			// 	y: pageHeight - 40,
+			// 	width: 140,
+			// 	height: 140,
+			// 	opacity: 1,
+			// });
+			// page.drawEllipse({
+			// 	x: x,
+			// 	y: y,
+			// 	xScale: 70,
+			// 	yScale: 70,
+			// 	borderColor: rgb(1, 1, 0),
+			// 	borderOpacity: 1,
+			// 	opacity: 1,
+			// });
+			// page.pushOperators(popGraphicsState());
 
 			const pdfBytes = await doc.save();
 			const blob = new Blob([pdfBytes], { type: 'application/pdf' });

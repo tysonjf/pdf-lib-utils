@@ -11,11 +11,16 @@ export type DrawTextAreaOptions = {
 	color?: Color;
 	opacity?: number;
 	clipOverflow?: boolean;
+	hideOnOverflow?: boolean;
 	onOverflow?: (info: {
 		overflowedLines: TextPart[][];
 		overflowedLineIndices: number[];
 		totalLines: number;
 		renderedLines: number;
+		overflowed: boolean;
+		overflowX: boolean;
+		overflowY: boolean;
+		message: string;
 	}) => void;
 };
 
@@ -93,6 +98,48 @@ export function drawTextArea(
 			? Array.from({ length: lines.length - lastLineIdx }, (_, i) => i + lastLineIdx)
 			: [];
 
+	// Overflow detection (x/y)
+	const overflowY = !fitsAll;
+	// For x overflow, check if any line is too wide
+	const overflowX = renderLines.some(
+		(line) => line.reduce((sum, p) => sum + partWidth(p), 0) > boxWidth
+	);
+	const overflowed = overflowX || overflowY;
+	let message = '';
+	if (overflowX && overflowY) message = 'Text overflows both X (width) and Y (height)';
+	else if (overflowX) message = 'Text overflows X (width)';
+	else if (overflowY) message = 'Text overflows Y (height)';
+	else message = 'Text fits within the box';
+
+	if (options.onOverflow && overflowed) {
+		options.onOverflow({
+			overflowedLines,
+			overflowedLineIndices,
+			totalLines: lines.length,
+			renderedLines: renderLines.length,
+			overflowed,
+			overflowX,
+			overflowY,
+			message,
+		});
+	}
+
+	if (options.hideOnOverflow && overflowed) {
+		// Optionally draw rectangle around text area
+		if (drawRect) {
+			page.drawRectangle({
+				x: boxLeft,
+				y: boxTop - boxHeight,
+				width: boxWidth,
+				height: boxHeight,
+				borderColor: rgb(0, 0.5, 1),
+				borderWidth: 1,
+				opacity: 0.5,
+			});
+		}
+		return;
+	}
+
 	// 4. Vertical alignment
 	const renderLineHeights = renderLines.map((line) =>
 		Math.max(...line.map((p) => (p.fontSize || defaultFontSize) * lineHeight))
@@ -146,16 +193,6 @@ export function drawTextArea(
 			borderColor: rgb(0, 0.5, 1),
 			borderWidth: 1,
 			opacity: 0.5,
-		});
-	}
-
-	// 7. Call overflow callback if needed
-	if (options.onOverflow && overflowedLines.length > 0) {
-		options.onOverflow({
-			overflowedLines,
-			overflowedLineIndices,
-			totalLines: lines.length,
-			renderedLines: renderLines.length,
 		});
 	}
 }

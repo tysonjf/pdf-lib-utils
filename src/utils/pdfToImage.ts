@@ -19,13 +19,13 @@ export async function pdfToImage(
 	}
 	const doc = await loadingTask.promise;
 	const page = await doc.getPage(pageNumber);
-	const viewport = page.getViewport({ scale: 1 });
+	const viewport = page.getViewport({ scale: 3 });
 	const canvas = document.createElement('canvas');
 	canvas.width = viewport.width;
 	canvas.height = viewport.height;
 	const context = canvas.getContext('2d');
 	if (!context) throw new Error('Could not get canvas context');
 	const renderContext = { canvasContext: context, viewport };
-	await page.render(renderContext).promise;
+	await page.render({ ...renderContext, background: 'white' }).promise;
 	return canvas.toDataURL('image/png');
 }
