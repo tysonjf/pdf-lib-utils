@@ -43,7 +43,7 @@ function App() {
 			const pageHeight = page.getHeight();
 			const pageWidth = page.getWidth();
 
-			console.time('⏱️ Drawing Text Area');
+			// console.time('⏱️ Drawing Text Area');
 			// drawTextArea(
 			// 	page,
 			// 	textPartsFns[textPartsIdx](EduHandFont),
@@ -54,41 +54,41 @@ function App() {
 			// 	sampleTextOptions[alignIdx],
 			// 	true
 			// );
-			console.timeEnd('⏱️ Drawing Text Area');
+			// console.timeEnd('⏱️ Drawing Text Area');
 
-			console.time('⏱️ Drawing Text Line');
-			drawTextLine(
-				page,
-				[
-					{
-						text: 'Hello World',
-						font: EduHandFont,
-						fontSize: 12,
-					},
-				],
-				20, // x (mm)
-				30, // y (mm)
-				pageWidth - 40, // width (mm)
-				20, // height (mm)
-				{
-					align: 'justifyWords',
-					verticalAlign: 'middle',
-					hideOnOverflow: true,
-					onOverflow: (info) => {
-						console.log(info);
-					},
-					color: rgb(0, 0, 0),
-					opacity: 1,
-				},
-				true
-			);
-			console.timeEnd('⏱️ Drawing Text Line');
+			// console.time('⏱️ Drawing Text Line');
+			// drawTextLine(
+			// 	page,
+			// 	[
+			// 		{
+			// 			text: 'Hello World',
+			// 			font: EduHandFont,
+			// 			fontSize: 12,
+			// 		},
+			// 	],
+			// 	20, // x (mm)
+			// 	30, // y (mm)
+			// 	pageWidth - 40, // width (mm)
+			// 	20, // height (mm)
+			// 	{
+			// 		align: 'justifyWords',
+			// 		verticalAlign: 'middle',
+			// 		hideOnOverflow: true,
+			// 		onOverflow: (info) => {
+			// 			console.log(info);
+			// 		},
+			// 		color: rgb(0, 0, 0),
+			// 		opacity: 1,
+			// 	},
+			// 	true
+			// );
+			// console.timeEnd('⏱️ Drawing Text Line');
+
 			const image = await doc.embedPng(imgBytes);
-
-			drawImageArea(page, image, 20, 50, 200, 100, {
+			drawImageArea(page, image, 20, 50, 200, 150, {
 				opacity: 1,
-				clipShape: 'ellipse',
-				debug: true,
+				clipShape: 'rect',
+				// debug: true,
 			});
 
 			// // drawEllipse demo

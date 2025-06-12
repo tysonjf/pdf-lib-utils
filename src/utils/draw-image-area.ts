@@ -61,7 +61,7 @@ export function drawImageArea(
 		);
 	}
 
-	// 2. Compute image fitting
+	// 1. Compute image fitting (fit: cover/contain/fill)
 	const imgW = image.width;
 	const imgH = image.height;
 	const areaW = boxWidth;
@@ -87,17 +87,35 @@ export function drawImageArea(
 		drawH = areaH;
 	}
 
-	// 3. Compute offset (offsetX/Y: -1 to 1, percent from center)
-	// 0 = center, -1 = left/top, 1 = right/bottom
-	const maxOffsetX = Math.abs(drawW - areaW) / 2;
-	const maxOffsetY = Math.abs(drawH - areaH) / 2;
-	const offsetXPx = offsetX * maxOffsetX;
-	const offsetYPx = offsetY * maxOffsetY;
+	// 2. Calculate x, y to center the image in the area (bottom-left origin)
+	const overflowX = drawW - areaW;
+	const overflowY = drawH - areaH;
 
-	const drawX = boxLeft - (drawW - areaW) / 2 + offsetXPx;
-	const drawY = boxBottom - (drawH - areaH) / 2 + offsetYPx;
+	// Center of the area
+	const areaCenterX = boxLeft + boxWidth / 2;
+	const areaCenterY = boxBottom + boxHeight / 2;
 
-	// 4. Draw image
+	// Offset in px (relative to image size)
+	const offsetXPx = (offsetX ?? 0) * (drawW / 2);
+	const offsetYPx = (offsetY ?? 0) * (drawH / 2);
+
+	// Final image position (bottom-left corner)
+	let drawX = areaCenterX - drawW / 2 + offsetXPx;
+	let drawY = areaCenterY - drawH / 2 + offsetYPx;
+
+	// 3. Apply offset (offsetX/Y: -1 to 1, percent of area size)
+	// offsetX = -1 is left, 1 is right; offsetY = -1 is bottom, 1 is top
+	// The offset is a percentage of the area size (not the overflow)
+	if (offsetX) {
+		drawX += (offsetX * areaW) / 2;
+	}
+	if (offsetY) {
+		drawY += (offsetY * areaH) / 2;
+	}
+
+	// 4. (Future) Apply scale here if needed
+
+	// 5. Draw image
 	page.drawImage(image, {
 		x: drawX,
 		y: drawY,
@@ -106,7 +124,7 @@ export function drawImageArea(
 		opacity,
 	});
 
-	// 5. Optionally draw debug border
+	// 6. Optionally draw debug border
 	if (debug) {
 		if (clipShape === 'ellipse') {
 			page.drawEllipse({
@@ -131,6 +149,6 @@ export function drawImageArea(
 		}
 	}
 
-	// 6. Pop graphics state
+	// 7. Pop graphics state
 	page.pushOperators(popGraphicsState());
 }
