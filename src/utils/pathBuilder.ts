@@ -9,6 +9,7 @@ import {
 	lineTo,
 	moveTo,
 	PDFOperator,
+	PDFPage,
 	pushGraphicsState,
 	setFillingCmykColor,
 	setFillingGrayscaleColor,
@@ -196,6 +197,10 @@ export class PathBuilder {
 	getOperators() {
 		return this.operators;
 	}
+	pushOperators(page: PDFPage) {
+		page.pushOperators(...this.getOperators());
+		return this;
+	}
 
 	static ellipseClip(x: number, y: number, xRadius: number, yRadius: number) {
 		return [
@@ -221,5 +226,58 @@ export class PathBuilder {
 
 	static rectPath(x: number, y: number, width: number, height: number) {
 		return new PathBuilder().rect(x, y, width, height);
+	}
+
+	/**
+	 * Draws a rounded rectangle path (like CSS border-radius).
+	 * @param x left
+	 * @param y bottom
+	 * @param width
+	 * @param height
+	 * @param radius corner radius (max: half of width/height)
+	 */
+	roundedRect(x: number, y: number, width: number, height: number, radius: number) {
+		const r = Math.max(0, Math.min(radius, Math.min(width, height) / 2));
+		const right = x + width;
+		const top = y + height;
+		const left = x;
+		const bottom = y;
+		const KAPPA = 0.5522847498307936; // (4/3)*tan(pi/8)
+		const c = r * KAPPA;
+		return this.moveTo(left + r, bottom)
+			.lineTo(right - r, bottom)
+			.appendBezierCurve(right - r + c, bottom, right, bottom + r - c, right, bottom + r)
+			.lineTo(right, top - r)
+			.appendBezierCurve(right, top - r + c, right - r + c, top, right - r, top)
+			.lineTo(left + r, top)
+			.appendBezierCurve(left + r - c, top, left, top - r + c, left, top - r)
+			.lineTo(left, bottom + r)
+			.appendBezierCurve(left, bottom + r - c, left + r - c, bottom, left + r, bottom)
+			.closePath();
+	}
+
+	static roundedRectClip(
+		x: number,
+		y: number,
+		width: number,
+		height: number,
+		radius: number
+	) {
+		return [
+			pushGraphicsState(),
+			...new PathBuilder().roundedRect(x, y, width, height, radius).getOperators(),
+			clipEvenOdd(),
+			endPath(),
+		];
+	}
+
+	static roundedRectPath(
+		x: number,
+		y: number,
+		width: number,
+		height: number,
+		radius: number
+	) {
+		return new PathBuilder().roundedRect(x, y, width, height, radius);
 	}
 }

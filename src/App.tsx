@@ -1,4 +1,4 @@
-import { PDFDocument, popGraphicsState, rgb } from '@cantoo/pdf-lib';
+import { cmyk, LineCapStyle, PDFDocument, popGraphicsState, rgb } from '@cantoo/pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { useEffect, useState } from 'react';
 import styles from './app.module.css';
@@ -88,31 +88,13 @@ function App() {
 			drawImageArea(page, image, 20, 50, 200, 150, {
 				opacity: 1,
 				clipShape: 'rect',
+				borderRadius: 2,
 				// debug: true,
 			});
 
-			// // drawEllipse demo
-			// const y = 70 + 40;
-			// const x = 70 + 40;
-			// page.pushOperators(...PathBuilder.ellipseClip(x, y, 70, 70));
-			// // Draw the image within the clipping path
-			// page.drawImage(image, {
-			// 	x: 40,
-			// 	y: pageHeight - 40,
-			// 	width: 140,
-			// 	height: 140,
-			// 	opacity: 1,
-			// });
-			// page.drawEllipse({
-			// 	x: x,
-			// 	y: y,
-			// 	xScale: 70,
-			// 	yScale: 70,
-			// 	borderColor: rgb(1, 1, 0),
-			// 	borderOpacity: 1,
-			// 	opacity: 1,
-			// });
-			// page.pushOperators(popGraphicsState());
+			PathBuilder.roundedRectPath(20, page.getHeight() - 150 - 50, 200, 150, 2)
+				.stroke(cmyk(0, 1, 0, 0), 4)
+				.pushOperators(page);
 
 			const pdfBytes = await doc.save();
 			const blob = new Blob([pdfBytes], { type: 'application/pdf' });

@@ -7,6 +7,7 @@ export type DrawImageAreaOptions = {
 	offsetX?: number; // -1 to 1, percent from center, default 0
 	offsetY?: number; // -1 to 1, percent from center, default 0
 	opacity?: number;
+	borderRadius?: number; // radius in PDF units (points)
 	debug?: boolean; // draw the clip area border
 };
 
@@ -42,6 +43,7 @@ export function drawImageArea(
 		offsetX = 0,
 		offsetY = 0,
 		opacity = 1,
+		borderRadius = 0,
 		debug = false,
 	} = options;
 
@@ -53,6 +55,16 @@ export function drawImageArea(
 				boxTop - boxHeight / 2,
 				boxWidth / 2,
 				boxHeight / 2
+			)
+		);
+	} else if (borderRadius && borderRadius > 0) {
+		page.pushOperators(
+			...PathBuilder.roundedRectClip(
+				boxLeft,
+				boxTop - boxHeight,
+				boxWidth,
+				boxHeight,
+				borderRadius
 			)
 		);
 	} else {
@@ -132,6 +144,26 @@ export function drawImageArea(
 				y: boxTop - boxHeight / 2,
 				xScale: boxWidth / 2,
 				yScale: boxHeight / 2,
+				borderColor: rgb(1, 0, 0),
+				borderWidth: 1,
+				opacity: 0.5,
+			});
+		} else if (borderRadius && borderRadius > 0) {
+			// Draw rounded rect border
+			page.pushOperators(
+				...PathBuilder.roundedRectPath(
+					boxLeft,
+					boxTop - boxHeight,
+					boxWidth,
+					boxHeight,
+					borderRadius
+				).getOperators()
+			);
+			page.drawRectangle({
+				x: boxLeft,
+				y: boxTop - boxHeight,
+				width: boxWidth,
+				height: boxHeight,
 				borderColor: rgb(1, 0, 0),
 				borderWidth: 1,
 				opacity: 0.5,
