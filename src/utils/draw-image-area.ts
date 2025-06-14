@@ -100,8 +100,8 @@ export function drawImageArea(
 	}
 
 	// 2. Calculate x, y to center the image in the area (bottom-left origin)
-	const overflowX = drawW - areaW;
-	const overflowY = drawH - areaH;
+	// const overflowX = drawW - areaW;
+	// const overflowY = drawH - areaH;
 
 	// Center of the area
 	const areaCenterX = boxLeft + boxWidth / 2;
