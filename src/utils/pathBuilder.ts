@@ -6,15 +6,20 @@ import {
 	endPath,
 	fill,
 	fillAndStroke,
+	LineCapStyle,
+	LineJoinStyle,
 	lineTo,
 	moveTo,
 	PDFOperator,
 	PDFPage,
 	popGraphicsState,
 	pushGraphicsState,
+	setDashPattern,
 	setFillingCmykColor,
 	setFillingGrayscaleColor,
 	setFillingRgbColor,
+	setLineCap,
+	setLineJoin,
 	setLineWidth,
 	setStrokingCmykColor,
 	setStrokingGrayscaleColor,
@@ -24,12 +29,12 @@ import {
 } from '@cantoo/pdf-lib';
 
 // --- Types and helpers for new API ---
-export type RoundedRectConfig = {
+export type RectConfig = {
 	x: number;
 	y: number; // from top
 	width: number;
 	height: number;
-	radius: number;
+	radius?: number;
 	stroke?: Color;
 	strokeWidth?: number;
 	strokeOpacity?: number;
@@ -37,24 +42,103 @@ export type RoundedRectConfig = {
 	fillOpacity?: number;
 };
 
+export type EllipseConfig = {
+	x: number;
+	y: number; // from top
+	xRadius: number;
+	yRadius: number;
+	stroke?: Color;
+	strokeWidth?: number;
+	strokeOpacity?: number;
+	fill?: Color;
+	fillOpacity?: number;
+	dashArray?: number[];
+	dashPhase?: number;
+};
+
+/**
+ * Convert y from top to y from bottom
+ * @example
+ * ```ts
+ * page.drawImage(image, {
+ *   x: 20,
+ *   y: yFromTop(page, 30, 200), // 30 is the y from top, 200 is the height of the image
+ *   width: 200,
+ *   height: 200, // 200 is the height of the image
+ *   opacity: 1,
+ * });
+ * // y = page.getHeight() - 30 - 200 = page.getHeight() - 230
+ * ```
+ * @param page page
+ * @param y desired y from top
+ * @param height height of the object
+ * @returns calculated y from bottom
+ */
 export function yFromTop(page: PDFPage, y: number, height: number) {
 	return page.getHeight() - y - height;
 }
 
-class PathBuilderInstance {
+class PathBuilderInstance<TConfig extends { x: number; y: number } = RectConfig> {
 	constructor(
 		private builder: PathBuilder,
-		private config: RoundedRectConfig,
+		private config: TConfig,
 		private page: PDFPage
 	) {}
+
+	private hasFill(obj: unknown): obj is { fill: Color } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'fill' in obj &&
+			(obj as Record<string, unknown>).fill !== undefined
+		);
+	}
+	private hasStroke(obj: unknown): obj is { stroke: Color; strokeWidth?: number } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'stroke' in obj &&
+			(obj as Record<string, unknown>).stroke !== undefined
+		);
+	}
+	private hasHeight(obj: unknown): obj is { height: number } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'height' in obj &&
+			typeof (obj as Record<string, unknown>).height === 'number'
+		);
+	}
+	private hasYRadius(obj: unknown): obj is { yRadius: number } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'yRadius' in obj &&
+			typeof (obj as Record<string, unknown>).yRadius === 'number'
+		);
+	}
+	private hasDash(obj: unknown): obj is { dashArray: number[]; dashPhase?: number } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'dashArray' in obj &&
+			Array.isArray((obj as Record<string, unknown>).dashArray)
+		);
+	}
 
 	clip(callback: (params: { page: PDFPage; top: number; left: number }) => void) {
 		this.page.pushOperators(pushGraphicsState());
 		this.page.pushOperators(...this.builder.getOperators());
 		this.page.pushOperators(clipEvenOdd(), endPath());
+		let height = 0;
+		if (this.hasHeight(this.config)) {
+			height = this.config.height;
+		} else if (this.hasYRadius(this.config)) {
+			height = this.config.yRadius * 2;
+		}
 		callback({
 			page: this.page,
-			top: yFromTop(this.page, this.config.y, this.config.height),
+			top: yFromTop(this.page, this.config.y, height),
 			left: this.config.x,
 		});
 		this.page.pushOperators(popGraphicsState());
@@ -63,13 +147,21 @@ class PathBuilderInstance {
 
 	pushOperators() {
 		// Fill/stroke if specified in config
-		if (this.config.fill) {
+		this.page.pushOperators(pushGraphicsState());
+
+		if (this.hasDash(this.config)) {
+			this.page.pushOperators(
+				setDashPattern(this.config.dashArray, this.config.dashPhase ?? 0)
+			);
+		}
+		if (this.hasFill(this.config)) {
 			this.builder.fill(this.config.fill);
 		}
-		if (this.config.stroke) {
+		if (this.hasStroke(this.config)) {
 			this.builder.stroke(this.config.stroke, this.config.strokeWidth);
 		}
 		this.page.pushOperators(...this.builder.getOperators());
+		this.page.pushOperators(popGraphicsState());
 		return this;
 	}
 }
@@ -92,12 +184,39 @@ export class PathBuilder {
 		return this;
 	}
 
-	rect(x: number, y: number, width: number, height: number) {
-		return this.moveTo(x, y)
-			.lineTo(x + width, y)
-			.lineTo(x + width, y + height)
-			.lineTo(x, y + height)
-			.closePath();
+	rect(x: number, y: number, width: number, height: number, radius: number = 0) {
+		if (radius > 0) {
+			const r = Math.max(0, Math.min(radius, Math.min(width, height) / 2));
+			const right = x + width;
+			const top = y + height;
+			const left = x;
+			const bottom = y;
+			const KAPPA = 0.5522847498307936; // (4/3)*tan(pi/8)
+			const c = r * KAPPA;
+			return this.moveTo(left + r, bottom)
+				.lineTo(right - r, bottom)
+				.appendBezierCurve(
+					right - r + c,
+					bottom,
+					right,
+					bottom + r - c,
+					right,
+					bottom + r
+				)
+				.lineTo(right, top - r)
+				.appendBezierCurve(right, top - r + c, right - r + c, top, right - r, top)
+				.lineTo(left + r, top)
+				.appendBezierCurve(left + r - c, top, left, top - r + c, left, top - r)
+				.lineTo(left, bottom + r)
+				.appendBezierCurve(left, bottom + r - c, left + r - c, bottom, left + r, bottom)
+				.closePath();
+		} else {
+			return this.moveTo(x, y)
+				.lineTo(x + width, y)
+				.lineTo(x + width, y + height)
+				.lineTo(x, y + height)
+				.closePath();
+		}
 	}
 
 	ellipse(x: number, y: number, xRadius: number, yRadius: number) {
@@ -108,7 +227,6 @@ export class PathBuilder {
 		const ye = y + yRadius;
 		const xs = x - xRadius;
 		const ys = y - yRadius;
-
 		return this.moveTo(x, ye)
 			.appendBezierCurve(x + ox, ye, xe, y + oy, xe, y)
 			.appendBezierCurve(xe, y - oy, x + ox, ys, x, ys)
@@ -204,50 +322,55 @@ export class PathBuilder {
 		return this.operators;
 	}
 	pushOperators(page: PDFPage) {
+		page.pushOperators(pushGraphicsState());
 		page.pushOperators(...this.getOperators());
+		page.pushOperators(popGraphicsState());
 		return this;
 	}
 
-	static ellipsePath(x: number, y: number, xRadius: number, yRadius: number) {
-		return new PathBuilder().ellipse(x, y, xRadius, yRadius);
-	}
-
-	static rectPath(x: number, y: number, width: number, height: number) {
-		return new PathBuilder().rect(x, y, width, height);
+	/**
+	 * @example
+	 * ```ts
+	 * PathBuilder.ellipsePath(page, {
+	 * 	x: 20,
+	 * 	y: 30,
+	 * 	xRadius: 200,
+	 * 	yRadius: 150,
+	 * });
+	 * ```
+	 * @param page page
+	 * @param config ellipse config
+	 * @returns PathBuilderInstance
+	 */
+	static ellipsePath(page: PDFPage, config: EllipseConfig) {
+		const { x, y, xRadius, yRadius } = config;
+		const xRadiusResize = xRadius / 2;
+		const yRadiusResize = yRadius / 2;
+		const xPdf = x + xRadiusResize;
+		const yPdf = yFromTop(page, y, yRadiusResize);
+		const builder = new PathBuilder().ellipse(xPdf, yPdf, xRadiusResize, yRadiusResize);
+		return new PathBuilderInstance<EllipseConfig>(builder, config, page);
 	}
 
 	/**
-	 * Draws a rounded rectangle path (like CSS border-radius).
-	 * @param x left
-	 * @param y bottom
-	 * @param width
-	 * @param height
-	 * @param radius corner radius (max: half of width/height)
+	 * @example
+	 * ```ts
+	 * PathBuilder.rectPath(page, {
+	 * 	x: 20,
+	 * 	y: 30,
+	 * 	width: 200,
+	 * 	height: 150,
+	 * 	radius: 2,
+	 * });
+	 * ```
+	 * @param page page
+	 * @param config rect config
+	 * @returns PathBuilderInstance
 	 */
-	roundedRect(x: number, y: number, width: number, height: number, radius: number) {
-		const r = Math.max(0, Math.min(radius, Math.min(width, height) / 2));
-		const right = x + width;
-		const top = y + height;
-		const left = x;
-		const bottom = y;
-		const KAPPA = 0.5522847498307936; // (4/3)*tan(pi/8)
-		const c = r * KAPPA;
-		return this.moveTo(left + r, bottom)
-			.lineTo(right - r, bottom)
-			.appendBezierCurve(right - r + c, bottom, right, bottom + r - c, right, bottom + r)
-			.lineTo(right, top - r)
-			.appendBezierCurve(right, top - r + c, right - r + c, top, right - r, top)
-			.lineTo(left + r, top)
-			.appendBezierCurve(left + r - c, top, left, top - r + c, left, top - r)
-			.lineTo(left, bottom + r)
-			.appendBezierCurve(left, bottom + r - c, left + r - c, bottom, left + r, bottom)
-			.closePath();
-	}
-
-	static roundedRectPath(page: PDFPage, config: RoundedRectConfig) {
-		const { x, y, width, height, radius } = config;
+	static rectPath(page: PDFPage, config: RectConfig) {
+		const { x, y, width, height, radius = 0 } = config;
 		const yPdf = yFromTop(page, y, height);
-		const builder = new PathBuilder().roundedRect(x, yPdf, width, height, radius);
-		return new PathBuilderInstance(builder, config, page);
+		const builder = new PathBuilder().rect(x, yPdf, width, height, radius);
+		return new PathBuilderInstance<RectConfig>(builder, config, page);
 	}
 }

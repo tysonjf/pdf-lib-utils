@@ -1,8 +1,30 @@
-import type { Color, PDFPage } from '@cantoo/pdf-lib';
+import {
+	cmyk,
+	type Color,
+	type PDFPage,
+	popGraphicsState,
+	pushGraphicsState,
+} from '@cantoo/pdf-lib';
 import type { TextPart } from './text-metrics';
 import { partWidth, splitPartToWords } from './text-metrics';
 
-export type DrawTextAreaOptions = {
+export type OnOverflow = (info: {
+	overflowedLines: TextPart[][];
+	overflowedLineIndices: number[];
+	totalLines: number;
+	renderedLines: number;
+	overflowed: boolean;
+	overflowX: boolean;
+	overflowY: boolean;
+	message: string;
+}) => void;
+
+export type DrawTextAreaParams = {
+	parts: TextPart[];
+	x: number;
+	y: number;
+	width: number;
+	height: number;
 	align?: 'left' | 'center' | 'right';
 	verticalAlign?: 'top' | 'middle' | 'bottom';
 	autoWrap?: boolean;
@@ -11,45 +33,42 @@ export type DrawTextAreaOptions = {
 	opacity?: number;
 	clipOverflow?: boolean;
 	hideOnOverflow?: boolean;
-	onOverflow?: (info: {
-		overflowedLines: TextPart[][];
-		overflowedLineIndices: number[];
-		totalLines: number;
-		renderedLines: number;
-		overflowed: boolean;
-		overflowX: boolean;
-		overflowY: boolean;
-		message: string;
-	}) => void;
+	onOverflow?: OnOverflow;
+	debugOptions?: {
+		debug: boolean;
+		rectColor?: Color;
+		rectBorderWidth?: number;
+		rectOpacity?: number;
+	};
 };
 
 /**
  * Draws text parts in a rectangular area (multi-line, wrapping, no justification).
  */
-export function drawTextArea(
-	page: PDFPage,
-	parts: TextPart[],
-	x: number,
-	y: number,
-	width: number,
-	height: number,
-	options: DrawTextAreaOptions = {},
-	debug: boolean = false,
-	debugOptions: {
-		rectColor?: Color;
-		rectBorderWidth?: number;
-		rectOpacity?: number;
-	} = {}
-) {
+export function drawTextArea(page: PDFPage, params: DrawTextAreaParams) {
+	const {
+		parts,
+		x,
+		y,
+		width,
+		height,
+		align = 'left',
+		verticalAlign = 'top',
+		autoWrap = true,
+		lineHeight = 1.2,
+		color = cmyk(0, 0, 0, 1),
+		opacity = 1,
+		clipOverflow = false,
+		hideOnOverflow = false,
+		onOverflow,
+		debugOptions = { debug: false },
+	} = params;
 	const pageHeight = page.getHeight();
 	const boxTop = pageHeight - y;
 	const boxLeft = x;
 	const boxWidth = width;
 	const boxHeight = height;
 
-	const autoWrap = options.autoWrap !== false;
-	const align = options.align || 'left';
-	const lineHeight = options.lineHeight || 1.2;
 	const defaultFontSize = 12;
 
 	// 1. Process all parts as a word stream, always splitting into words, and using newLine:true as a forced line break
@@ -93,12 +112,10 @@ export function drawTextArea(
 		}
 	}
 	const fitsAll = lastLineIdx === -1;
-	const renderLines =
-		options.clipOverflow && !fitsAll ? lines.slice(0, lastLineIdx) : lines;
-	const overflowedLines =
-		options.clipOverflow && !fitsAll ? lines.slice(lastLineIdx) : [];
+	const renderLines = clipOverflow && !fitsAll ? lines.slice(0, lastLineIdx) : lines;
+	const overflowedLines = clipOverflow && !fitsAll ? lines.slice(lastLineIdx) : [];
 	const overflowedLineIndices =
-		options.clipOverflow && !fitsAll
+		clipOverflow && !fitsAll
 			? Array.from({ length: lines.length - lastLineIdx }, (_, i) => i + lastLineIdx)
 			: [];
 
@@ -115,8 +132,8 @@ export function drawTextArea(
 	else if (overflowY) message = 'Text overflows Y (height)';
 	else message = 'Text fits within the box';
 
-	if (options.onOverflow && overflowed) {
-		options.onOverflow({
+	if (onOverflow && overflowed) {
+		onOverflow({
 			overflowedLines,
 			overflowedLineIndices,
 			totalLines: lines.length,
@@ -128,9 +145,10 @@ export function drawTextArea(
 		});
 	}
 
-	if (options.hideOnOverflow && overflowed) {
+	page.pushOperators(pushGraphicsState());
+	if (hideOnOverflow && overflowed) {
 		// Optionally draw rectangle around text area
-		if (debug) {
+		if (debugOptions.debug) {
 			page.drawRectangle({
 				x: boxLeft,
 				y: boxTop - boxHeight,
@@ -142,6 +160,7 @@ export function drawTextArea(
 				opacity: debugOptions.rectOpacity ?? 0.5,
 			});
 		}
+		page.pushOperators(popGraphicsState());
 		return;
 	}
 
@@ -151,9 +170,9 @@ export function drawTextArea(
 	);
 	const renderTextHeight = renderLineHeights.reduce((a, b) => a + b, 0);
 	let startY = boxTop;
-	if (options.verticalAlign === 'middle') {
+	if (verticalAlign === 'middle') {
 		startY = boxTop - (boxHeight - renderTextHeight) / 2;
-	} else if (options.verticalAlign === 'bottom') {
+	} else if (verticalAlign === 'bottom') {
 		startY = boxTop - (boxHeight - renderTextHeight);
 	}
 
@@ -180,8 +199,8 @@ export function drawTextArea(
 				y: yCursor - (maxFontSize - partFontSize) - partFontSize,
 				font: part.font,
 				size: partFontSize,
-				color: part.color ?? options.color,
-				opacity: part.opacity ?? options.opacity,
+				color: part.color ?? color,
+				opacity: part.opacity ?? opacity,
 			});
 			xCursor += partWidth(part);
 		}
@@ -189,7 +208,7 @@ export function drawTextArea(
 	}
 
 	// 6. Draw rectangle around text area
-	if (debug) {
+	if (debugOptions.debug) {
 		page.drawRectangle({
 			x: boxLeft,
 			y: boxTop - boxHeight,
@@ -201,6 +220,7 @@ export function drawTextArea(
 			opacity: debugOptions.rectOpacity ?? 0.5,
 		});
 	}
+	page.pushOperators(popGraphicsState());
 }
 
 // Helper to group consecutive TextParts with the same style

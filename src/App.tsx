@@ -1,14 +1,7 @@
-import { cmyk, LineCapStyle, PDFDocument, popGraphicsState, rgb } from '@cantoo/pdf-lib';
+import { cmyk, PDFDocument } from '@cantoo/pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { useEffect, useState } from 'react';
 import styles from './app.module.css';
-import {
-	sampleTextOptions,
-	sampleTextParts1,
-	sampleTextParts2,
-	sampleTextParts3,
-	sampleTextParts4,
-} from './test-data/text-area-data';
 import { drawTextArea } from './utils/draw-text-area';
 import { drawTextLine } from './utils/draw-text-line';
 import { PathBuilder, yFromTop } from './utils/pathBuilder';
@@ -19,13 +12,6 @@ function App() {
 	const [imageUrl, setImageUrl] = useState<string | null>(null);
 	const [textPartsIdx, setTextPartsIdx] = useState(0);
 	const [alignIdx, setAlignIdx] = useState(0);
-
-	const textPartsFns = [
-		sampleTextParts1,
-		sampleTextParts2,
-		sampleTextParts3,
-		sampleTextParts4,
-	];
 
 	useEffect(() => {
 		async function main() {
@@ -39,75 +25,82 @@ function App() {
 			});
 			// Larger page size for more test data
 			const page = doc.addPage([300, 400]);
-			const pageHeight = page.getHeight();
-			const pageWidth = page.getWidth();
 
-			// console.time('⏱️ Drawing Text Area');
-			// drawTextArea(
-			// 	page,
-			// 	textPartsFns[textPartsIdx](EduHandFont),
-			// 	20, // x (mm)
-			// 	30, // y (mm)
-			// 	pageWidth - 40, // width (mm)
-			// 	pageHeight - 60, // height (mm)
-			// 	sampleTextOptions[alignIdx],
-			// 	true
-			// );
-			// console.timeEnd('⏱️ Drawing Text Area');
+			drawTextArea(page, {
+				parts: [
+					{
+						text: 'Hello World',
+						font: EduHandFont,
+						fontSize: 12,
+					},
+					{
+						text: 'Hello World',
+						font: EduHandFont,
+						fontSize: 12,
+						newLine: true,
+					},
+				],
+				height: 150,
+				width: 200,
+				x: 20,
+				y: 300,
+				align: 'center',
+				verticalAlign: 'middle',
+				hideOnOverflow: false,
+			});
 
-			// console.time('⏱️ Drawing Text Line');
-			// drawTextLine(
-			// 	page,
-			// 	[
-			// 		{
-			// 			text: 'Hello World',
-			// 			font: EduHandFont,
-			// 			fontSize: 12,
-			// 		},
-			// 	],
-			// 	20, // x (mm)
-			// 	30, // y (mm)
-			// 	pageWidth - 40, // width (mm)
-			// 	20, // height (mm)
-			// 	{
-			// 		align: 'justifyWords',
-			// 		verticalAlign: 'middle',
-			// 		hideOnOverflow: true,
-			// 		onOverflow: (info) => {
-			// 			console.log(info);
-			// 		},
-			// 		color: rgb(0, 0, 0),
-			// 		opacity: 1,
-			// 	},
-			// 	true
-			// );
-			// console.timeEnd('⏱️ Drawing Text Line');
+			drawTextLine(page, {
+				parts: [
+					{
+						text: 'Hello World',
+						font: EduHandFont,
+						fontSize: 12,
+					},
+				],
+				x: 20,
+				y: 300,
+				width: 200,
+				height: 150,
+				align: 'justifyWords',
+				verticalAlign: 'middle',
+				hideOnOverflow: true,
+				onOverflow: (info) => {
+					console.log(info);
+				},
+				opacity: 1,
+			});
 
 			const image = await doc.embedPng(imgBytes);
 
-			PathBuilder.roundedRectPath(page, {
+			PathBuilder.ellipsePath(page, {
 				x: 20,
 				y: 30,
-				width: 200,
-				height: 150,
-				radius: 2,
-			}).clip(({ page, left }) => {
-				page.drawImage(image, {
-					x: left,
-					y: yFromTop(page, 30, 100),
-					width: 100,
-					height: 100,
-					opacity: 1,
-				});
-			});
-
-			PathBuilder.roundedRectPath(page, {
-				x: 20,
-				y: 30,
-				width: 200,
-				height: 150,
-				radius: 2,
+				xRadius: 200,
+				yRadius: 150,
 				stroke: cmyk(0, 1, 0, 0),
+				strokeWidth: 4,
+				strokeOpacity: 1,
+				dashArray: [10, 10],
+				dashPhase: 0,
+			})
+				.clip(({ page, left }) => {
+					page.drawImage(image, {
+						x: left,
+						y: yFromTop(page, 30, 200),
+						width: 200,
+						height: 200,
+						opacity: 1,
+					});
+				})
+				.pushOperators();
+
+			PathBuilder.rectPath(page, {
+				x: 20,
+				y: 30,
+				width: 200,
+				height: 150,
+				radius: 10,
+				stroke: cmyk(0, 0, 1, 1),
 				strokeWidth: 4,
 				strokeOpacity: 1,
 			}).pushOperators();
