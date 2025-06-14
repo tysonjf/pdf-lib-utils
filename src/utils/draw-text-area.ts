@@ -1,5 +1,4 @@
 import type { Color, PDFPage } from '@cantoo/pdf-lib';
-import { rgb } from '@cantoo/pdf-lib';
 import type { TextPart } from './text-metrics';
 import { partWidth, splitPartToWords } from './text-metrics';
 
@@ -35,7 +34,12 @@ export function drawTextArea(
 	width: number,
 	height: number,
 	options: DrawTextAreaOptions = {},
-	drawRect: boolean = false
+	debug: boolean = false,
+	debugOptions: {
+		rectColor?: Color;
+		rectBorderWidth?: number;
+		rectOpacity?: number;
+	} = {}
 ) {
 	const pageHeight = page.getHeight();
 	const boxTop = pageHeight - y;
@@ -126,15 +130,16 @@ export function drawTextArea(
 
 	if (options.hideOnOverflow && overflowed) {
 		// Optionally draw rectangle around text area
-		if (drawRect) {
+		if (debug) {
 			page.drawRectangle({
 				x: boxLeft,
 				y: boxTop - boxHeight,
 				width: boxWidth,
 				height: boxHeight,
-				borderColor: rgb(0, 0.5, 1),
-				borderWidth: 1,
-				opacity: 0.5,
+				borderColor:
+					debugOptions.rectColor ?? ({ type: 'RGB', red: 1, green: 0, blue: 0 } as Color),
+				borderWidth: debugOptions.rectBorderWidth ?? 1,
+				opacity: debugOptions.rectOpacity ?? 0.5,
 			});
 		}
 		return;
@@ -184,15 +189,16 @@ export function drawTextArea(
 	}
 
 	// 6. Draw rectangle around text area
-	if (drawRect) {
+	if (debug) {
 		page.drawRectangle({
 			x: boxLeft,
 			y: boxTop - boxHeight,
 			width: boxWidth,
 			height: boxHeight,
-			borderColor: rgb(0, 0.5, 1),
-			borderWidth: 1,
-			opacity: 0.5,
+			borderColor:
+				debugOptions.rectColor ?? ({ type: 'RGB', red: 1, green: 0, blue: 0 } as Color),
+			borderWidth: debugOptions.rectBorderWidth ?? 1,
+			opacity: debugOptions.rectOpacity ?? 0.5,
 		});
 	}
 }

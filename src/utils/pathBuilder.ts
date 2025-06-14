@@ -37,7 +37,7 @@ export type RoundedRectConfig = {
 	fillOpacity?: number;
 };
 
-function yFromTop(page: PDFPage, y: number, height: number) {
+export function yFromTop(page: PDFPage, y: number, height: number) {
 	return page.getHeight() - y - height;
 }
 
@@ -48,15 +48,15 @@ class PathBuilderInstance {
 		private page: PDFPage
 	) {}
 
-	clip(callback: (page: PDFPage, top: number, left: number) => void) {
+	clip(callback: (params: { page: PDFPage; top: number; left: number }) => void) {
 		this.page.pushOperators(pushGraphicsState());
 		this.page.pushOperators(...this.builder.getOperators());
 		this.page.pushOperators(clipEvenOdd(), endPath());
-		callback(
-			this.page,
-			yFromTop(this.page, this.config.y, this.config.height),
-			this.config.x
-		);
+		callback({
+			page: this.page,
+			top: yFromTop(this.page, this.config.y, this.config.height),
+			left: this.config.x,
+		});
 		this.page.pushOperators(popGraphicsState());
 		return this;
 	}

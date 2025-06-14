@@ -1,0 +1,22 @@
+# Ignore everything by default
+*
+
+# But not these...
+!dist/
+!package.json
+!README.md
+!LICENSE
+
+# Optional: allow type definitions if outside dist
+!*.d.ts
+
+# Never publish these
+node_modules/
+.git/
+.gitignore
+npm-debug.log
+pnpm-lock.yaml
+vite.config.ts
+tsconfig*.json
+src/
+public/

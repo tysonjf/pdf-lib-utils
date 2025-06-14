@@ -11,7 +11,7 @@ import {
 } from './test-data/text-area-data';
 import { drawTextArea } from './utils/draw-text-area';
 import { drawTextLine } from './utils/draw-text-line';
-import { PathBuilder } from './utils/pathBuilder';
+import { PathBuilder, yFromTop } from './utils/pathBuilder';
 import { pdfToImage } from './utils/pdfToImage';
 
 function App() {
@@ -87,23 +87,23 @@ function App() {
 
 			PathBuilder.roundedRectPath(page, {
 				x: 20,
-				y: 40,
+				y: 30,
 				width: 200,
 				height: 150,
 				radius: 2,
-			}).clip((page, top, left) => {
+			}).clip(({ page, left }) => {
 				page.drawImage(image, {
 					x: left,
-					y: top,
-					width: 200,
-					height: 150,
+					y: yFromTop(page, 30, 100),
+					width: 100,
+					height: 100,
 					opacity: 1,
 				});
 			});
 
 			PathBuilder.roundedRectPath(page, {
 				x: 20,
-				y: 40,
+				y: 30,
 				width: 200,
 				height: 150,
 				radius: 2,
