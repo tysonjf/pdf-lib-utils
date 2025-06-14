@@ -10,6 +10,7 @@ import {
 	moveTo,
 	PDFOperator,
 	PDFPage,
+	popGraphicsState,
 	pushGraphicsState,
 	setFillingCmykColor,
 	setFillingGrayscaleColor,
@@ -19,7 +20,59 @@ import {
 	setStrokingGrayscaleColor,
 	setStrokingRgbColor,
 	stroke,
+	type Color,
 } from '@cantoo/pdf-lib';
+
+// --- Types and helpers for new API ---
+export type RoundedRectConfig = {
+	x: number;
+	y: number; // from top
+	width: number;
+	height: number;
+	radius: number;
+	stroke?: Color;
+	strokeWidth?: number;
+	strokeOpacity?: number;
+	fill?: Color;
+	fillOpacity?: number;
+};
+
+function yFromTop(page: PDFPage, y: number, height: number) {
+	return page.getHeight() - y - height;
+}
+
+class PathBuilderInstance {
+	constructor(
+		private builder: PathBuilder,
+		private config: RoundedRectConfig,
+		private page: PDFPage
+	) {}
+
+	clip(callback: (page: PDFPage, top: number, left: number) => void) {
+		this.page.pushOperators(pushGraphicsState());
+		this.page.pushOperators(...this.builder.getOperators());
+		this.page.pushOperators(clipEvenOdd(), endPath());
+		callback(
+			this.page,
+			yFromTop(this.page, this.config.y, this.config.height),
+			this.config.x
+		);
+		this.page.pushOperators(popGraphicsState());
+		return this;
+	}
+
+	pushOperators() {
+		// Fill/stroke if specified in config
+		if (this.config.fill) {
+			this.builder.fill(this.config.fill);
+		}
+		if (this.config.stroke) {
+			this.builder.stroke(this.config.stroke, this.config.strokeWidth);
+		}
+		this.page.pushOperators(...this.builder.getOperators());
+		return this;
+	}
+}
 
 export class PathBuilder {
 	constructor(private readonly operators: PDFOperator[] = []) {}
@@ -76,17 +129,7 @@ export class PathBuilder {
 		return this;
 	}
 
-	fill(color: {
-		type: ColorTypes;
-		gray?: number;
-		red?: number;
-		green?: number;
-		blue?: number;
-		cyan?: number;
-		magenta?: number;
-		yellow?: number;
-		key?: number;
-	}) {
+	fill(color: Color) {
 		if (color?.type === ColorTypes.CMYK) {
 			this.operators.push(
 				setFillingCmykColor(color.cyan!, color.magenta!, color.yellow!, color.key!)
@@ -100,20 +143,7 @@ export class PathBuilder {
 		return this;
 	}
 
-	stroke(
-		color?: {
-			type: ColorTypes;
-			gray?: number;
-			red?: number;
-			green?: number;
-			blue?: number;
-			cyan?: number;
-			magenta?: number;
-			yellow?: number;
-			key?: number;
-		},
-		width?: number
-	) {
+	stroke(color?: Color, width?: number) {
 		if (color?.type === ColorTypes.CMYK) {
 			this.operators.push(
 				setStrokingCmykColor(color.cyan!, color.magenta!, color.yellow!, color.key!)
@@ -130,31 +160,7 @@ export class PathBuilder {
 		return this;
 	}
 
-	fillAndStroke(
-		fillColor: {
-			type: ColorTypes;
-			gray?: number;
-			red?: number;
-			green?: number;
-			blue?: number;
-			cyan?: number;
-			magenta?: number;
-			yellow?: number;
-			key?: number;
-		},
-		strokeColor: {
-			type: ColorTypes;
-			gray?: number;
-			red?: number;
-			green?: number;
-			blue?: number;
-			cyan?: number;
-			magenta?: number;
-			yellow?: number;
-			key?: number;
-		},
-		strokeWidth?: number
-	) {
+	fillAndStroke(fillColor: Color, strokeColor: Color, strokeWidth?: number) {
 		if (fillColor?.type === ColorTypes.CMYK) {
 			this.operators.push(
 				setFillingCmykColor(
@@ -202,24 +208,6 @@ export class PathBuilder {
 		return this;
 	}
 
-	static ellipseClip(x: number, y: number, xRadius: number, yRadius: number) {
-		return [
-			pushGraphicsState(),
-			...new PathBuilder().ellipse(x, y, xRadius, yRadius).getOperators(),
-			clipEvenOdd(),
-			endPath(),
-		];
-	}
-
-	static rectClip(x: number, y: number, width: number, height: number) {
-		return [
-			pushGraphicsState(),
-			...new PathBuilder().rect(x, y, width, height).getOperators(),
-			clipEvenOdd(),
-			endPath(),
-		];
-	}
-
 	static ellipsePath(x: number, y: number, xRadius: number, yRadius: number) {
 		return new PathBuilder().ellipse(x, y, xRadius, yRadius);
 	}
@@ -256,28 +244,10 @@ export class PathBuilder {
 			.closePath();
 	}
 
-	static roundedRectClip(
-		x: number,
-		y: number,
-		width: number,
-		height: number,
-		radius: number
-	) {
-		return [
-			pushGraphicsState(),
-			...new PathBuilder().roundedRect(x, y, width, height, radius).getOperators(),
-			clipEvenOdd(),
-			endPath(),
-		];
-	}
-
-	static roundedRectPath(
-		x: number,
-		y: number,
-		width: number,
-		height: number,
-		radius: number
-	) {
-		return new PathBuilder().roundedRect(x, y, width, height, radius);
+	static roundedRectPath(page: PDFPage, config: RoundedRectConfig) {
+		const { x, y, width, height, radius } = config;
+		const yPdf = yFromTop(page, y, height);
+		const builder = new PathBuilder().roundedRect(x, yPdf, width, height, radius);
+		return new PathBuilderInstance(builder, config, page);
 	}
 }

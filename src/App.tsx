@@ -9,7 +9,6 @@ import {
 	sampleTextParts3,
 	sampleTextParts4,
 } from './test-data/text-area-data';
-import { drawImageArea } from './utils/draw-image-area';
 import { drawTextArea } from './utils/draw-text-area';
 import { drawTextLine } from './utils/draw-text-line';
 import { PathBuilder } from './utils/pathBuilder';
@@ -85,16 +84,33 @@ function App() {
 			// console.timeEnd('⏱️ Drawing Text Line');
 
 			const image = await doc.embedPng(imgBytes);
-			drawImageArea(page, image, 20, 50, 200, 150, {
-				opacity: 1,
-				clipShape: 'rect',
-				borderRadius: 2,
-				// debug: true,
+
+			PathBuilder.roundedRectPath(page, {
+				x: 20,
+				y: 40,
+				width: 200,
+				height: 150,
+				radius: 2,
+			}).clip((page, top, left) => {
+				page.drawImage(image, {
+					x: left,
+					y: top,
+					width: 200,
+					height: 150,
+					opacity: 1,
+				});
 			});
 
-			PathBuilder.roundedRectPath(20, page.getHeight() - 150 - 50, 200, 150, 2)
-				.stroke(cmyk(0, 1, 0, 0), 4)
-				.pushOperators(page);
+			PathBuilder.roundedRectPath(page, {
+				x: 20,
+				y: 40,
+				width: 200,
+				height: 150,
+				radius: 2,
+				stroke: cmyk(0, 1, 0, 0),
+				strokeWidth: 4,
+				strokeOpacity: 1,
+			}).pushOperators();
 
 			const pdfBytes = await doc.save();
 			const blob = new Blob([pdfBytes], { type: 'application/pdf' });
