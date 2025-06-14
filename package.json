@@ -1,5 +1,5 @@
 {
-	"name": "pdflib-utils",
+	"name": "@tysonjf/pdf-lib-utils",
 	"author": "Tyson JF",
 	"license": "MIT",
 	"repository": {
@@ -16,8 +16,6 @@
 	"keywords": [
 		"pdf",
 		"pdf-lib",
-		"pdflib",
-		"pdflib-utils",
 		"pdf-lib-utils",
 		"pdf-lib-utils-cjs",
 		"pdf-lib-utils-esm"
