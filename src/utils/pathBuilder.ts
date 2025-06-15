@@ -40,6 +40,7 @@ export type RectConfig = {
 	dashArray?: number[];
 	dashPhase?: number;
 	fromTop?: boolean;
+	isolate?: boolean;
 };
 
 export type EllipseConfig = {
@@ -55,6 +56,7 @@ export type EllipseConfig = {
 	dashArray?: number[];
 	dashPhase?: number;
 	fromTop?: boolean;
+	isolate?: boolean;
 };
 
 class PathBuilderInstance<TConfig extends { x: number; y: number } = RectConfig> {
@@ -104,6 +106,14 @@ class PathBuilderInstance<TConfig extends { x: number; y: number } = RectConfig>
 			Array.isArray((obj as Record<string, unknown>).dashArray)
 		);
 	}
+	private hasIsolate(obj: unknown): obj is { isolate: boolean } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'isolate' in obj &&
+			typeof (obj as Record<string, unknown>).isolate === 'boolean'
+		);
+	}
 
 	clip(callback: (params: { page: PDFPage; top: number; left: number }) => void) {
 		this.page.pushOperators(pushGraphicsState());
@@ -125,9 +135,9 @@ class PathBuilderInstance<TConfig extends { x: number; y: number } = RectConfig>
 	}
 
 	pushOperators() {
-		// Fill/stroke if specified in config
-		this.page.pushOperators(pushGraphicsState());
-
+		if (this.hasIsolate(this.config)) {
+			this.page.pushOperators(pushGraphicsState());
+		}
 		if (this.hasFill(this.config) && this.hasStroke(this.config)) {
 			this.builder.fillAndStroke(
 				this.config.fill,
@@ -145,14 +155,10 @@ class PathBuilderInstance<TConfig extends { x: number; y: number } = RectConfig>
 				setDashPattern(this.config.dashArray, this.config.dashPhase ?? 0)
 			);
 		}
-		// if (this.hasFill(this.config)) {
-		// 	this.builder.fill(this.config.fill);
-		// }
-		// if (this.hasStroke(this.config)) {
-		// 	this.builder.stroke(this.config.stroke, this.config.strokeWidth);
-		// }
 		this.page.pushOperators(...this.builder.getOperators());
-		this.page.pushOperators(popGraphicsState());
+		if (this.hasIsolate(this.config)) {
+			this.page.pushOperators(popGraphicsState());
+		}
 		return this;
 	}
 }
@@ -312,10 +318,14 @@ export class PathBuilder {
 	getOperators() {
 		return this.operators;
 	}
-	pushOperators(page: PDFPage) {
-		page.pushOperators(pushGraphicsState());
+	pushOperators(page: PDFPage, config: { isolate: boolean }) {
+		if (config.isolate) {
+			page.pushOperators(pushGraphicsState());
+		}
 		page.pushOperators(...this.getOperators());
-		page.pushOperators(popGraphicsState());
+		if (config.isolate) {
+			page.pushOperators(popGraphicsState());
+		}
 		return this;
 	}
 
@@ -334,13 +344,16 @@ export class PathBuilder {
 	 * @returns PathBuilderInstance
 	 */
 	static ellipsePath(page: PDFPage, config: EllipseConfig) {
-		const { x, y, xRadius, yRadius, fromTop } = config;
-		const xRadiusResize = xRadius / 2;
-		const yRadiusResize = yRadius / 2;
-		const xPdf = x + xRadiusResize;
-		const yPdf = fromTop !== false ? yFromTop(page, y, yRadiusResize) : y + yRadiusResize;
-		const builder = new PathBuilder().ellipse(xPdf, yPdf, xRadiusResize, yRadiusResize);
-		return new PathBuilderInstance<EllipseConfig>(builder, config, page);
+		const { isolate = true, ...rest } = config;
+		const builder = new PathBuilder().ellipse(
+			rest.x + rest.xRadius / 2,
+			rest.fromTop !== false
+				? yFromTop(page, rest.y, rest.yRadius / 2)
+				: rest.y + rest.yRadius / 2,
+			rest.xRadius / 2,
+			rest.yRadius / 2
+		);
+		return new PathBuilderInstance<EllipseConfig>(builder, { ...rest, isolate }, page);
 	}
 
 	/**
@@ -359,9 +372,15 @@ export class PathBuilder {
 	 * @returns PathBuilderInstance
 	 */
 	static rectPath(page: PDFPage, config: RectConfig) {
-		const { x, y, width, height, radius = 0, fromTop } = config;
-		const yPdf = fromTop !== false ? yFromTop(page, y, height) : y;
-		const builder = new PathBuilder().rect(x, yPdf, width, height, radius);
-		return new PathBuilderInstance<RectConfig>(builder, config, page);
+		const { isolate = true, ...rest } = config;
+		const yPdf = rest.fromTop !== false ? yFromTop(page, rest.y, rest.height) : rest.y;
+		const builder = new PathBuilder().rect(
+			rest.x,
+			yPdf,
+			rest.width,
+			rest.height,
+			rest.radius ?? 0
+		);
+		return new PathBuilderInstance<RectConfig>(builder, { ...rest, isolate }, page);
 	}
 }

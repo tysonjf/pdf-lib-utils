@@ -119,7 +119,6 @@ function App() {
 				background: cmyk(0, 0, 0, 1),
 				foreground: cmyk(0, 1, 0, 0),
 				radius: 10,
-				forgroundRadius: 10,
 			});
 
 			const pdfBytes = await doc.save();
