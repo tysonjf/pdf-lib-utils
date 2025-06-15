@@ -7,7 +7,7 @@
 		"url": "https://github.com/tysonjf/pdf-lib-utils"
 	},
 	"private": false,
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "A collection of utilities for drawing text and shapes in PDF documents using pdf-lib.",
 	"type": "module",
 	"main": "dist/index.cjs",
