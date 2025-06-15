@@ -5,10 +5,10 @@ import {
 	popGraphicsState,
 	pushGraphicsState,
 } from '@cantoo/pdf-lib';
-import type { TextPart } from './text-metrics';
-import { partWidth, splitPartToWords } from './text-metrics';
+import type { TextPart } from './metrics';
+import { partWidth, splitPartToWords } from './metrics';
 
-export type OnOverflow = (info: {
+export type OnOverflowTextArea = (info: {
 	overflowedLines: TextPart[][];
 	overflowedLineIndices: number[];
 	totalLines: number;
@@ -33,7 +33,7 @@ export type DrawTextAreaParams = {
 	opacity?: number;
 	clipOverflow?: boolean;
 	hideOnOverflow?: boolean;
-	onOverflow?: OnOverflow;
+	onOverflow?: OnOverflowTextArea;
 	debugOptions?: {
 		debug: boolean;
 		rectColor?: Color;

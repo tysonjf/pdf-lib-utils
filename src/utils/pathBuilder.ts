@@ -6,8 +6,6 @@ import {
 	endPath,
 	fill,
 	fillAndStroke,
-	LineCapStyle,
-	LineJoinStyle,
 	lineTo,
 	moveTo,
 	PDFOperator,
@@ -18,8 +16,6 @@ import {
 	setFillingCmykColor,
 	setFillingGrayscaleColor,
 	setFillingRgbColor,
-	setLineCap,
-	setLineJoin,
 	setLineWidth,
 	setStrokingCmykColor,
 	setStrokingGrayscaleColor,
@@ -27,11 +23,12 @@ import {
 	stroke,
 	type Color,
 } from '@cantoo/pdf-lib';
+import { yFromTop } from './metrics';
 
 // --- Types and helpers for new API ---
 export type RectConfig = {
 	x: number;
-	y: number; // from top
+	y: number; // from top or bottom depending on fromTop
 	width: number;
 	height: number;
 	radius?: number;
@@ -40,11 +37,14 @@ export type RectConfig = {
 	strokeOpacity?: number;
 	fill?: Color;
 	fillOpacity?: number;
+	dashArray?: number[];
+	dashPhase?: number;
+	fromTop?: boolean;
 };
 
 export type EllipseConfig = {
 	x: number;
-	y: number; // from top
+	y: number; // from top or bottom depending on fromTop
 	xRadius: number;
 	yRadius: number;
 	stroke?: Color;
@@ -54,29 +54,8 @@ export type EllipseConfig = {
 	fillOpacity?: number;
 	dashArray?: number[];
 	dashPhase?: number;
+	fromTop?: boolean;
 };
-
-/**
- * Convert y from top to y from bottom
- * @example
- * ```ts
- * page.drawImage(image, {
- *   x: 20,
- *   y: yFromTop(page, 30, 200), // 30 is the y from top, 200 is the height of the image
- *   width: 200,
- *   height: 200, // 200 is the height of the image
- *   opacity: 1,
- * });
- * // y = page.getHeight() - 30 - 200 = page.getHeight() - 230
- * ```
- * @param page page
- * @param y desired y from top
- * @param height height of the object
- * @returns calculated y from bottom
- */
-export function yFromTop(page: PDFPage, y: number, height: number) {
-	return page.getHeight() - y - height;
-}
 
 class PathBuilderInstance<TConfig extends { x: number; y: number } = RectConfig> {
 	constructor(
@@ -149,17 +128,29 @@ class PathBuilderInstance<TConfig extends { x: number; y: number } = RectConfig>
 		// Fill/stroke if specified in config
 		this.page.pushOperators(pushGraphicsState());
 
+		if (this.hasFill(this.config) && this.hasStroke(this.config)) {
+			this.builder.fillAndStroke(
+				this.config.fill,
+				this.config.stroke,
+				this.config.strokeWidth
+			);
+		} else if (this.hasFill(this.config)) {
+			this.builder.fill(this.config.fill);
+		} else if (this.hasStroke(this.config)) {
+			this.builder.stroke(this.config.stroke, this.config.strokeWidth);
+		}
+
 		if (this.hasDash(this.config)) {
 			this.page.pushOperators(
 				setDashPattern(this.config.dashArray, this.config.dashPhase ?? 0)
 			);
 		}
-		if (this.hasFill(this.config)) {
-			this.builder.fill(this.config.fill);
-		}
-		if (this.hasStroke(this.config)) {
-			this.builder.stroke(this.config.stroke, this.config.strokeWidth);
-		}
+		// if (this.hasFill(this.config)) {
+		// 	this.builder.fill(this.config.fill);
+		// }
+		// if (this.hasStroke(this.config)) {
+		// 	this.builder.stroke(this.config.stroke, this.config.strokeWidth);
+		// }
 		this.page.pushOperators(...this.builder.getOperators());
 		this.page.pushOperators(popGraphicsState());
 		return this;
@@ -343,11 +334,11 @@ export class PathBuilder {
 	 * @returns PathBuilderInstance
 	 */
 	static ellipsePath(page: PDFPage, config: EllipseConfig) {
-		const { x, y, xRadius, yRadius } = config;
+		const { x, y, xRadius, yRadius, fromTop } = config;
 		const xRadiusResize = xRadius / 2;
 		const yRadiusResize = yRadius / 2;
 		const xPdf = x + xRadiusResize;
-		const yPdf = yFromTop(page, y, yRadiusResize);
+		const yPdf = fromTop !== false ? yFromTop(page, y, yRadiusResize) : y + yRadiusResize;
 		const builder = new PathBuilder().ellipse(xPdf, yPdf, xRadiusResize, yRadiusResize);
 		return new PathBuilderInstance<EllipseConfig>(builder, config, page);
 	}
@@ -368,8 +359,8 @@ export class PathBuilder {
 	 * @returns PathBuilderInstance
 	 */
 	static rectPath(page: PDFPage, config: RectConfig) {
-		const { x, y, width, height, radius = 0 } = config;
-		const yPdf = yFromTop(page, y, height);
+		const { x, y, width, height, radius = 0, fromTop } = config;
+		const yPdf = fromTop !== false ? yFromTop(page, y, height) : y;
 		const builder = new PathBuilder().rect(x, yPdf, width, height, radius);
 		return new PathBuilderInstance<RectConfig>(builder, config, page);
 	}

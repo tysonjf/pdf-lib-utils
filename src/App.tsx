@@ -2,9 +2,11 @@ import { cmyk, PDFDocument } from '@cantoo/pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
 import { useEffect, useState } from 'react';
 import styles from './app.module.css';
+import { drawQRCode } from './utils/draw-qr-code';
 import { drawTextArea } from './utils/draw-text-area';
 import { drawTextLine } from './utils/draw-text-line';
-import { PathBuilder, yFromTop } from './utils/pathBuilder';
+import { yFromTop } from './utils/metrics';
+import { PathBuilder } from './utils/pathBuilder';
 import { pdfToImage } from './utils/pdfToImage';
 
 function App() {
@@ -104,6 +106,21 @@ function App() {
 				strokeWidth: 4,
 				strokeOpacity: 1,
 			}).pushOperators();
+
+			drawQRCode(page, {
+				data: 'www.google.com',
+				x: 30,
+				y: 50,
+				width: 200,
+				height: 200,
+				margin: 10,
+				border: cmyk(1, 0, 0, 0),
+				borderWidth: 2,
+				background: cmyk(0, 0, 0, 1),
+				foreground: cmyk(0, 1, 0, 0),
+				radius: 10,
+				forgroundRadius: 10,
+			});
 
 			const pdfBytes = await doc.save();
 			const blob = new Blob([pdfBytes], { type: 'application/pdf' });

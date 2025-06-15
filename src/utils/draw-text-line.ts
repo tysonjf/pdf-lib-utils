@@ -5,10 +5,10 @@ import {
 	type Color,
 	type PDFPage,
 } from '@cantoo/pdf-lib';
-import type { TextPart } from './text-metrics';
-import { partWidth, splitPartToWords } from './text-metrics';
+import type { TextPart } from './metrics';
+import { partWidth, splitPartToWords } from './metrics';
 
-export type OnOverflow = (info: {
+export type OnOverflowTextLine = (info: {
 	overflowed: boolean;
 	overflowX: boolean;
 	overflowY: boolean;
@@ -31,7 +31,7 @@ export type DrawTextLineParams = {
 	color?: Color;
 	opacity?: number;
 	hideOnOverflow?: boolean;
-	onOverflow?: OnOverflow;
+	onOverflow?: OnOverflowTextLine;
 	debugOptions?: {
 		debug: boolean;
 		rectColor?: Color;
