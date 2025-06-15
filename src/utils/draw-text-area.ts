@@ -40,10 +40,51 @@ export type DrawTextAreaParams = {
 		rectBorderWidth?: number;
 		rectOpacity?: number;
 	};
+	/**
+	 * If true (default), isolates graphics state using pushGraphicsState/popGraphicsState so styles do not bleed.
+	 */
+	isolate?: boolean;
 };
 
 /**
- * Draws text parts in a rectangular area (multi-line, wrapping, no justification).
+ * Draws styled text parts in a rectangular area on a PDF page, supporting multi-line, word-wrapped text with alignment, vertical alignment, overflow handling, and per-part styling.
+ *
+ * - Y-coordinates are specified from the top of the page (not the bottom).
+ * - Each text part can have its own font, size, color, opacity, and can force a line break with `newLine: true`.
+ * - Handles overflow with options to hide, clip, or provide a callback for overflow info.
+ * - Optionally draws a debug rectangle around the text area.
+ * - By default, isolates graphics state so styles do not bleed into other drawing operations.
+ *
+ * @param page The PDFPage to draw on.
+ * @param params Drawing options:
+ *   @param parts Array of TextPart objects (each with text, font, and optional style).
+ *   @param x X-coordinate (from left of page).
+ *   @param y Y-coordinate (from top of page).
+ *   @param width Width of the text area.
+ *   @param height Height of the text area.
+ *   @param align Horizontal alignment: 'left' | 'center' | 'right' (default: 'left').
+ *   @param verticalAlign Vertical alignment: 'top' | 'middle' | 'bottom' (default: 'top').
+ *   @param autoWrap If true (default), wraps text to fit width.
+ *   @param lineHeight Line height multiplier (default: 1.2).
+ *   @param color Default text color (overridden by part.color).
+ *   @param opacity Default text opacity (overridden by part.opacity).
+ *   @param clipOverflow If true, only renders lines that fit in height (clips overflow).
+ *   @param hideOnOverflow If true, hides all text if any overflow occurs.
+ *   @param onOverflow Callback invoked with detailed info if overflow occurs.
+ *   @param debugOptions If set, draws a rectangle around the text area for debugging.
+ *   @param isolate If true (default), isolates graphics state (pushGraphicsState/popGraphicsState).
+ *
+ * @example
+ * drawTextArea(page, {
+ *   parts: [
+ *     { text: 'Hello, ', font, fontSize: 14 },
+ *     { text: 'world!', font, fontSize: 14, color: cmyk(0,1,0,0) },
+ *     { text: 'New line', font, newLine: true, fontSize: 10 }
+ *   ],
+ *   x: 20, y: 100, width: 200, height: 100,
+ *   align: 'center', verticalAlign: 'middle',
+ *   onOverflow: (info) => { if (info.overflowed) console.log(info.message); }
+ * });
  */
 export function drawTextArea(page: PDFPage, params: DrawTextAreaParams) {
 	const {
@@ -62,6 +103,7 @@ export function drawTextArea(page: PDFPage, params: DrawTextAreaParams) {
 		hideOnOverflow = false,
 		onOverflow,
 		debugOptions = { debug: false },
+		isolate = true,
 	} = params;
 	const pageHeight = page.getHeight();
 	const boxTop = pageHeight - y;
@@ -145,7 +187,7 @@ export function drawTextArea(page: PDFPage, params: DrawTextAreaParams) {
 		});
 	}
 
-	page.pushOperators(pushGraphicsState());
+	if (isolate) page.pushOperators(pushGraphicsState());
 	if (hideOnOverflow && overflowed) {
 		// Optionally draw rectangle around text area
 		if (debugOptions.debug) {
@@ -160,7 +202,7 @@ export function drawTextArea(page: PDFPage, params: DrawTextAreaParams) {
 				opacity: debugOptions.rectOpacity ?? 0.5,
 			});
 		}
-		page.pushOperators(popGraphicsState());
+		if (isolate) page.pushOperators(popGraphicsState());
 		return;
 	}
 
@@ -220,7 +262,7 @@ export function drawTextArea(page: PDFPage, params: DrawTextAreaParams) {
 			opacity: debugOptions.rectOpacity ?? 0.5,
 		});
 	}
-	page.pushOperators(popGraphicsState());
+	if (isolate) page.pushOperators(popGraphicsState());
 }
 
 // Helper to group consecutive TextParts with the same style

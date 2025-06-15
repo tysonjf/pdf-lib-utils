@@ -26,6 +26,24 @@ import {
 import { yFromTop } from './metrics';
 
 // --- Types and helpers for new API ---
+/**
+ * Configuration for drawing a rectangle path on a PDF page.
+ *
+ * @property x X-coordinate (from left of page)
+ * @property y Y-coordinate (from top or bottom, see fromTop)
+ * @property width Rectangle width
+ * @property height Rectangle height
+ * @property radius Optional corner radius
+ * @property stroke Optional stroke color
+ * @property strokeWidth Optional stroke width
+ * @property strokeOpacity Optional stroke opacity
+ * @property fill Optional fill color
+ * @property fillOpacity Optional fill opacity
+ * @property dashArray Optional dash pattern for border
+ * @property dashPhase Optional dash phase for border
+ * @property fromTop If true (default), y is from top; if false, y is from bottom
+ * @property isolate If true (default), isolates graphics state for this path
+ */
 export type RectConfig = {
 	x: number;
 	y: number; // from top or bottom depending on fromTop
@@ -43,6 +61,23 @@ export type RectConfig = {
 	isolate?: boolean;
 };
 
+/**
+ * Configuration for drawing an ellipse path on a PDF page.
+ *
+ * @property x X-coordinate (from left of page)
+ * @property y Y-coordinate (from top or bottom, see fromTop)
+ * @property xRadius Ellipse x-radius
+ * @property yRadius Ellipse y-radius
+ * @property stroke Optional stroke color
+ * @property strokeWidth Optional stroke width
+ * @property strokeOpacity Optional stroke opacity
+ * @property fill Optional fill color
+ * @property fillOpacity Optional fill opacity
+ * @property dashArray Optional dash pattern for border
+ * @property dashPhase Optional dash phase for border
+ * @property fromTop If true (default), y is from top; if false, y is from bottom
+ * @property isolate If true (default), isolates graphics state for this path
+ */
 export type EllipseConfig = {
 	x: number;
 	y: number; // from top or bottom depending on fromTop
@@ -59,110 +94,21 @@ export type EllipseConfig = {
 	isolate?: boolean;
 };
 
-class PathBuilderInstance<TConfig extends { x: number; y: number } = RectConfig> {
-	constructor(
-		private builder: PathBuilder,
-		private config: TConfig,
-		private page: PDFPage
-	) {}
-
-	private hasFill(obj: unknown): obj is { fill: Color } {
-		return (
-			typeof obj === 'object' &&
-			obj !== null &&
-			'fill' in obj &&
-			(obj as Record<string, unknown>).fill !== undefined
-		);
-	}
-	private hasStroke(obj: unknown): obj is { stroke: Color; strokeWidth?: number } {
-		return (
-			typeof obj === 'object' &&
-			obj !== null &&
-			'stroke' in obj &&
-			(obj as Record<string, unknown>).stroke !== undefined
-		);
-	}
-	private hasHeight(obj: unknown): obj is { height: number } {
-		return (
-			typeof obj === 'object' &&
-			obj !== null &&
-			'height' in obj &&
-			typeof (obj as Record<string, unknown>).height === 'number'
-		);
-	}
-	private hasYRadius(obj: unknown): obj is { yRadius: number } {
-		return (
-			typeof obj === 'object' &&
-			obj !== null &&
-			'yRadius' in obj &&
-			typeof (obj as Record<string, unknown>).yRadius === 'number'
-		);
-	}
-	private hasDash(obj: unknown): obj is { dashArray: number[]; dashPhase?: number } {
-		return (
-			typeof obj === 'object' &&
-			obj !== null &&
-			'dashArray' in obj &&
-			Array.isArray((obj as Record<string, unknown>).dashArray)
-		);
-	}
-	private hasIsolate(obj: unknown): obj is { isolate: boolean } {
-		return (
-			typeof obj === 'object' &&
-			obj !== null &&
-			'isolate' in obj &&
-			typeof (obj as Record<string, unknown>).isolate === 'boolean'
-		);
-	}
-
-	clip(callback: (params: { page: PDFPage; top: number; left: number }) => void) {
-		this.page.pushOperators(pushGraphicsState());
-		this.page.pushOperators(...this.builder.getOperators());
-		this.page.pushOperators(clipEvenOdd(), endPath());
-		let height = 0;
-		if (this.hasHeight(this.config)) {
-			height = this.config.height;
-		} else if (this.hasYRadius(this.config)) {
-			height = this.config.yRadius * 2;
-		}
-		callback({
-			page: this.page,
-			top: yFromTop(this.page, this.config.y, height),
-			left: this.config.x,
-		});
-		this.page.pushOperators(popGraphicsState());
-		return this;
-	}
-
-	pushOperators() {
-		if (this.hasIsolate(this.config)) {
-			this.page.pushOperators(pushGraphicsState());
-		}
-		if (this.hasFill(this.config) && this.hasStroke(this.config)) {
-			this.builder.fillAndStroke(
-				this.config.fill,
-				this.config.stroke,
-				this.config.strokeWidth
-			);
-		} else if (this.hasFill(this.config)) {
-			this.builder.fill(this.config.fill);
-		} else if (this.hasStroke(this.config)) {
-			this.builder.stroke(this.config.stroke, this.config.strokeWidth);
-		}
-
-		if (this.hasDash(this.config)) {
-			this.page.pushOperators(
-				setDashPattern(this.config.dashArray, this.config.dashPhase ?? 0)
-			);
-		}
-		this.page.pushOperators(...this.builder.getOperators());
-		if (this.hasIsolate(this.config)) {
-			this.page.pushOperators(popGraphicsState());
-		}
-		return this;
-	}
-}
-
+/**
+ * A chainable builder for PDF path drawing, supporting rectangles, ellipses, lines, and more.
+ *
+ * Use instance methods to build up a path, then call fill, stroke, or fillAndStroke to set styles.
+ * Use getOperators() to retrieve PDF operators, or pushOperators(page, {isolate}) to apply to a page.
+ *
+ * @example
+ * const builder = new PathBuilder()
+ *   .moveTo(10, 10)
+ *   .lineTo(100, 10)
+ *   .lineTo(100, 100)
+ *   .closePath()
+ *   .fill(cmyk(0,0,0,1));
+ * builder.pushOperators(page, {isolate: true});
+ */
 export class PathBuilder {
 	constructor(private readonly operators: PDFOperator[] = []) {}
 
@@ -382,5 +328,128 @@ export class PathBuilder {
 			rest.radius ?? 0
 		);
 		return new PathBuilderInstance<RectConfig>(builder, { ...rest, isolate }, page);
+	}
+}
+
+/**
+ * Chainable instance for applying a built path to a PDF page, with config for fill, stroke, dash, etc.
+ *
+ * Use pushOperators() to apply the path and styles to the page, respecting isolate and fromTop.
+ * Use clip() to restrict drawing to the path shape.
+ *
+ * @template TConfig Path config type (RectConfig, EllipseConfig, etc)
+ */
+class PathBuilderInstance<TConfig extends { x: number; y: number } = RectConfig> {
+	constructor(
+		private builder: PathBuilder,
+		private config: TConfig,
+		private page: PDFPage
+	) {}
+
+	private hasFill(obj: unknown): obj is { fill: Color } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'fill' in obj &&
+			(obj as Record<string, unknown>).fill !== undefined
+		);
+	}
+	private hasStroke(obj: unknown): obj is { stroke: Color; strokeWidth?: number } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'stroke' in obj &&
+			(obj as Record<string, unknown>).stroke !== undefined
+		);
+	}
+	private hasHeight(obj: unknown): obj is { height: number } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'height' in obj &&
+			typeof (obj as Record<string, unknown>).height === 'number'
+		);
+	}
+	private hasYRadius(obj: unknown): obj is { yRadius: number } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'yRadius' in obj &&
+			typeof (obj as Record<string, unknown>).yRadius === 'number'
+		);
+	}
+	private hasDash(obj: unknown): obj is { dashArray: number[]; dashPhase?: number } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'dashArray' in obj &&
+			Array.isArray((obj as Record<string, unknown>).dashArray)
+		);
+	}
+	private hasIsolate(obj: unknown): obj is { isolate: boolean } {
+		return (
+			typeof obj === 'object' &&
+			obj !== null &&
+			'isolate' in obj &&
+			typeof (obj as Record<string, unknown>).isolate === 'boolean'
+		);
+	}
+
+	/**
+	 * Apply the path and its styles to the page, respecting config (fill, stroke, dash, isolate, etc).
+	 *
+	 * @returns this (for chaining)
+	 */
+	pushOperators() {
+		if (this.hasIsolate(this.config)) {
+			this.page.pushOperators(pushGraphicsState());
+		}
+		if (this.hasFill(this.config) && this.hasStroke(this.config)) {
+			this.builder.fillAndStroke(
+				this.config.fill,
+				this.config.stroke,
+				this.config.strokeWidth
+			);
+		} else if (this.hasFill(this.config)) {
+			this.builder.fill(this.config.fill);
+		} else if (this.hasStroke(this.config)) {
+			this.builder.stroke(this.config.stroke, this.config.strokeWidth);
+		}
+
+		if (this.hasDash(this.config)) {
+			this.page.pushOperators(
+				setDashPattern(this.config.dashArray, this.config.dashPhase ?? 0)
+			);
+		}
+		this.page.pushOperators(...this.builder.getOperators());
+		if (this.hasIsolate(this.config)) {
+			this.page.pushOperators(popGraphicsState());
+		}
+		return this;
+	}
+
+	/**
+	 * Restrict drawing to the current path (clip), then run a callback to draw inside the clipped area.
+	 *
+	 * @param callback Function that receives the page and the top/left coordinates of the clipped area
+	 * @returns this (for chaining)
+	 */
+	clip(callback: (params: { page: PDFPage; top: number; left: number }) => void) {
+		this.page.pushOperators(pushGraphicsState());
+		this.page.pushOperators(...this.builder.getOperators());
+		this.page.pushOperators(clipEvenOdd(), endPath());
+		let height = 0;
+		if (this.hasHeight(this.config)) {
+			height = this.config.height;
+		} else if (this.hasYRadius(this.config)) {
+			height = this.config.yRadius * 2;
+		}
+		callback({
+			page: this.page,
+			top: yFromTop(this.page, this.config.y, height),
+			left: this.config.x,
+		});
+		this.page.pushOperators(popGraphicsState());
+		return this;
 	}
 }

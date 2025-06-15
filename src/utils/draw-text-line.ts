@@ -38,11 +38,50 @@ export type DrawTextLineParams = {
 		rectBorderWidth?: number;
 		rectOpacity?: number;
 	};
+	/**
+	 * If true (default), isolates graphics state using pushGraphicsState/popGraphicsState so styles do not bleed.
+	 */
+	isolate?: boolean;
 };
 
 /**
- * Draws a single line of text parts, with alignment and justification options. No wrapping.
- * Now also checks for vertical (y) overflow and supports verticalAlign.
+ * Draws a single line of styled text parts on a PDF page, with alignment, justification, vertical alignment, overflow handling, and per-part styling.
+ *
+ * - Y-coordinates are specified from the top of the page (not the bottom).
+ * - Each text part can have its own font, size, color, and opacity.
+ * - Supports alignment: left, center, right, justify by parts, or justify by words.
+ * - No wrapping: if the text does not fit, it is considered overflow.
+ * - Handles overflow with options to hide or provide a callback for overflow info.
+ * - Optionally draws a debug rectangle around the text line.
+ * - By default, isolates graphics state so styles do not bleed into other drawing operations.
+ *
+ * @param page The PDFPage to draw on.
+ * @param params Drawing options:
+ *   @param parts Array of TextPart objects (each with text, font, and optional style).
+ *   @param x X-coordinate (from left of page).
+ *   @param y Y-coordinate (from top of page).
+ *   @param width Width of the text line area.
+ *   @param height Height of the text line area.
+ *   @param align Horizontal alignment: 'left' | 'center' | 'right' | 'justifyParts' | 'justifyWords' (default: 'left').
+ *   @param verticalAlign Vertical alignment: 'top' | 'middle' | 'bottom' (default: 'top').
+ *   @param color Default text color (overridden by part.color).
+ *   @param opacity Default text opacity (overridden by part.opacity).
+ *   @param hideOnOverflow If true, hides the line if any overflow occurs.
+ *   @param onOverflow Callback invoked with detailed info if overflow occurs.
+ *   @param debugOptions If set, draws a rectangle around the text line for debugging.
+ *   @param isolate If true (default), isolates graphics state (pushGraphicsState/popGraphicsState).
+ *
+ * @example
+ * drawTextLine(page, {
+ *   parts: [
+ *     { text: 'Hello', font, fontSize: 12 },
+ *     { text: 'World!', font, fontSize: 12 }
+ *   ],
+ *   x: 20, y: 100, width: 200, height: 30,
+ *   align: 'justifyParts',
+ *   verticalAlign: 'middle',
+ *   onOverflow: (info) => { if (info.overflowed) console.log(info.message); }
+ * });
  */
 export function drawTextLine(page: PDFPage, params: DrawTextLineParams) {
 	const {
@@ -58,6 +97,7 @@ export function drawTextLine(page: PDFPage, params: DrawTextLineParams) {
 		hideOnOverflow = false,
 		onOverflow,
 		debugOptions = { debug: false },
+		isolate = true,
 	} = params;
 	const pageHeight = page.getHeight();
 	const boxTop = pageHeight - y;
@@ -108,7 +148,7 @@ export function drawTextLine(page: PDFPage, params: DrawTextLineParams) {
 		});
 	}
 
-	page.pushOperators(pushGraphicsState());
+	if (isolate) page.pushOperators(pushGraphicsState());
 	if (hideOnOverflow && overflowed) {
 		// Optionally draw rectangle around the line
 		if (debugOptions.debug) {
@@ -123,7 +163,7 @@ export function drawTextLine(page: PDFPage, params: DrawTextLineParams) {
 				opacity: debugOptions.rectOpacity ?? 0.5,
 			});
 		}
-		page.pushOperators(popGraphicsState());
+		if (isolate) page.pushOperators(popGraphicsState());
 		return;
 	}
 
@@ -189,7 +229,7 @@ export function drawTextLine(page: PDFPage, params: DrawTextLineParams) {
 			opacity: debugOptions.rectOpacity ?? 0.5,
 		});
 	}
-	page.pushOperators(popGraphicsState());
+	if (isolate) page.pushOperators(popGraphicsState());
 }
 
 // Helper to group consecutive TextParts with the same style (copied from draw-text-area)

@@ -268,6 +268,59 @@ This lets you mask any content (images, text, etc.) to a path.
 
 ---
 
+## QR Code Drawing Utility
+
+### `drawQRCode(page, options)`
+
+Draws a QR code on a PDF page with customizable size, colors, border, margin, and corner radius. This utility uses the [qrcode](https://www.npmjs.com/package/qrcode) package to generate the QR code matrix and draws it using the PDF-lib path utilities.
+
+**Options:**
+
+- `data: string` — The data to encode in the QR code.
+- `x: number`, `y: number` — Position of the QR code (top-left corner by default).
+- `width: number`, `height: number` — Size of the QR code area.
+- `border?: Color` — Border color.
+- `borderWidth?: number` — Border width.
+- `background?: Color` — Background color (default: transparent).
+- `backgroundOpacity?: number` — Background opacity (default: 1).
+- `foreground?: Color` — Foreground (QR squares) color (default: black).
+- `foregroundOpacity?: number` — Foreground opacity (default: 1).
+- `margin?: number` — Margin between the QR code and the border (default: 10).
+- `radius?: number` — Corner radius for the background rectangle (default: 0).
+- `forgroundRadius?: number` — Corner radius for each QR square (default: 0).
+- `dashArray?: number[]` — Border dash pattern.
+- `dashPhase?: number` — Border dash phase.
+- `fromTop?: boolean` — Whether y is from the top (default: true).
+- `isolate?: boolean` — Whether to isolate graphics state (default: true).
+
+**Example:**
+
+```ts
+import { drawQRCode } from 'pdf-lib-utils';
+import { cmyk } from '@cantoo/pdf-lib';
+
+await drawQRCode(page, {
+	data: 'https://www.google.com',
+	x: 100,
+	y: 100,
+	width: 100,
+	height: 100,
+	border: cmyk(0, 0, 0, 1),
+	borderWidth: 1,
+	background: cmyk(0, 0, 0, 0),
+	backgroundOpacity: 1,
+	foreground: cmyk(0, 0, 0, 1),
+	foregroundOpacity: 1,
+	margin: 10,
+	radius: 0,
+	forgroundRadius: 0,
+	dashArray: [1, 10],
+	dashPhase: 0,
+});
+```
+
+---
+
 ## Graphics State Isolation
 
 All utilities automatically save and restore the PDF graphics state using `pushGraphicsState` and `popGraphicsState`. This means that colors, opacity, and other styles set for one drawing operation **do not affect** subsequent drawings. You can safely mix and match text, shapes, and images without worrying about style bleed.
