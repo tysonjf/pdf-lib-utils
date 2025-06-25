@@ -20,7 +20,11 @@ function App() {
 			const doc = await PDFDocument.create();
 
 			doc.registerFontkit(fontkit);
-			const font = await fetch('/EduQLDHand-Bold.ttf').then((res) => res.arrayBuffer());
+			const font = await fetch('/BarlowCondensed-SemiBold.ttf').then((res) =>
+				res.arrayBuffer()
+			);
+			// const font = await fetch('/Roboto-Regular.ttf').then((res) => res.arrayBuffer());
+			// const font = await fetch('/EduQLDHand-Bold.ttf').then((res) => res.arrayBuffer());
 			const imgBytes = await fetch('/square.png').then((res) => res.arrayBuffer());
 			const EduHandFont = await doc.embedFont(font, {
 				customName: 'EduQLDHand-Bold',
@@ -43,83 +47,90 @@ function App() {
 					},
 				],
 				height: 150,
-				width: 200,
-				x: 20,
-				y: 300,
-				align: 'center',
-				verticalAlign: 'middle',
+				width: 150,
+				x: 0,
+				y: 0,
+				align: 'left',
+				verticalAlign: 'top',
+				// lineHeight: 2,
 				hideOnOverflow: false,
+				// debugOptions: {
+				// 	debug: true,
+				// 	rectColor: cmyk(1, 0, 0, 0),
+				// 	rectBorderWidth: 2,
+				// 	rectOpacity: 1,
+				// },
 			});
 
-			drawTextLine(page, {
-				parts: [
-					{
-						text: 'Hello World',
-						font: EduHandFont,
-						fontSize: 12,
-					},
-				],
-				x: 20,
-				y: 300,
-				width: 200,
-				height: 150,
-				align: 'justifyWords',
-				verticalAlign: 'middle',
-				hideOnOverflow: true,
-				onOverflow: (info) => {
-					console.log(info);
-				},
-				opacity: 1,
-			});
+			// drawTextLine(page, {
+			// 	parts: [
+			// 		{
+			// 			text: 'Hello World',
+			// 			font: EduHandFont,
+			// 			fontSize: 12,
+			// 		},
+			// 	],
+			// 	x: 20,
+			// 	y: 300,
+			// 	width: 200,
+			// 	height: 150,
+			// 	align: 'justifyWords',
+			// 	verticalAlign: 'middle',
+			// 	hideOnOverflow: true,
+			// 	onOverflow: (info) => {
+			// 		console.log(info);
+			// 	},
+			// 	opacity: 1,
+			// });
 
-			const image = await doc.embedPng(imgBytes);
+			// const image = await doc.embedPng(imgBytes);
 
-			PathBuilder.ellipsePath(page, {
-				x: 20,
-				y: 30,
-				xRadius: 200,
-				yRadius: 150,
-				stroke: cmyk(0, 1, 0, 0),
-				strokeWidth: 4,
-				strokeOpacity: 1,
-				dashArray: [10, 10],
-				dashPhase: 0,
-			})
-				.clip(({ page, left }) => {
-					page.drawImage(image, {
-						x: left,
-						y: yFromTop(page, 30, 200),
-						width: 200,
-						height: 200,
-						opacity: 1,
-					});
-				})
-				.pushOperators();
+			// PathBuilder.ellipsePath(page, {
+			// 	x: 20,
+			// 	y: 30,
+			// 	xRadius: 200,
+			// 	yRadius: 150,
+			// 	stroke: cmyk(0, 1, 0, 0),
+			// 	strokeWidth: 4,
+			// 	strokeOpacity: 1,
+			// 	dashArray: [10, 10],
+			// 	dashPhase: 0,
+			// })
+			// 	.clip(({ page, left }) => {
+			// 		page.drawImage(image, {
+			// 			x: left,
+			// 			y: yFromTop(page, 30, 200),
+			// 			width: 200,
+			// 			height: 200,
+			// 			opacity: 1,
+			// 		});
+			// 	})
+			// 	.pushOperators();
 
-			PathBuilder.rectPath(page, {
-				x: 20,
-				y: 30,
-				width: 200,
-				height: 150,
-				radius: 10,
-				stroke: cmyk(0, 0, 1, 1),
-				strokeWidth: 4,
-				strokeOpacity: 1,
-			}).pushOperators();
+			// PathBuilder.rectPath(page, {
+			// 	x: 20,
+			// 	y: 30,
+			// 	width: 200,
+			// 	height: 150,
+			// 	radius: 10,
+			// 	stroke: cmyk(0, 0, 1, 1),
+			// 	strokeWidth: 4,
+			// 	strokeOpacity: 1,
+			// }).pushOperators();
 
-			drawQRCode(page, {
-				data: 'www.google.com',
-				x: 30,
-				y: 50,
-				width: 200,
-				height: 200,
-				margin: 10,
-				border: cmyk(1, 0, 0, 0),
-				borderWidth: 2,
-				background: cmyk(0, 0, 0, 1),
-				foreground: cmyk(0, 1, 0, 0),
-				radius: 10,
-			});
+			// drawQRCode(page, {
+			// 	data: 'www.google.com',
+			// 	x: 30,
+			// 	y: 50,
+			// 	width: 200,
+			// 	height: 200,
+			// 	margin: 10,
+			// 	border: cmyk(1, 0, 0, 0),
+			// 	borderWidth: 0,
+			// 	background: cmyk(0, 0, 0, 0),
+			// 	foreground: cmyk(0, 0, 0, 1),
+			// 	radius: 10,
+			// });
 
 			const pdfBytes = await doc.save();
 			const blob = new Blob([pdfBytes], { type: 'application/pdf' });
@@ -190,7 +201,15 @@ function App() {
 					)}
 					{imageUrl && (
 						<div className={styles.pdfContainer}>
-							<img src={imageUrl} alt='PDF' style={{ width: '100%', height: 'auto' }} />
+							<img
+								src={imageUrl}
+								alt='PDF'
+								style={{
+									width: '100%',
+									height: 'calc(100% - 100px)',
+									objectFit: 'contain',
+								}}
+							/>
 						</div>
 					)}
 				</div>

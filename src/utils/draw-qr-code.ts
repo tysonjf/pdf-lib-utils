@@ -1,10 +1,4 @@
-import {
-	cmyk,
-	popGraphicsState,
-	pushGraphicsState,
-	type Color,
-	type PDFPage,
-} from '@cantoo/pdf-lib';
+import { cmyk, type Color, type PDFPage } from '@cantoo/pdf-lib';
 import * as QRCode from 'qrcode';
 import { PathBuilder } from './pathBuilder';
 
@@ -19,9 +13,7 @@ import { PathBuilder } from './pathBuilder';
  * @property border Optional border color
  * @property borderWidth Optional border width
  * @property background Optional background color (default: transparent)
- * @property backgroundOpacity Optional background opacity (default: 1)
  * @property foreground Optional QR square color (default: black)
- * @property foregroundOpacity Optional QR square opacity (default: 1)
  * @property margin Optional margin between QR code and border (default: 10)
  * @property radius Optional corner radius for background rectangle (default: 0)
  * @property forgroundRadius Optional corner radius for each QR square (default: 0)
@@ -39,9 +31,9 @@ export interface QRCodeOptions {
 	border?: Color;
 	borderWidth?: number;
 	background?: Color;
-	backgroundOpacity?: number;
+	// backgroundOpacity?: number;
 	foreground?: Color;
-	foregroundOpacity?: number;
+	// foregroundOpacity?: number;
 	margin?: number;
 	radius?: number;
 	forgroundRadius?: number;
@@ -72,9 +64,7 @@ export interface QRCodeOptions {
  *   border: cmyk(0, 0, 0, 1),
  *   borderWidth: 1,
  *   background: cmyk(0, 0, 0, 0),
- *   backgroundOpacity: 1,
  *   foreground: cmyk(0, 0, 0, 1),
- *   foregroundOpacity: 1,
  *   margin: 10,
  *   radius: 0,
  *   forgroundRadius: 0,
@@ -92,9 +82,9 @@ export async function drawQRCode(page: PDFPage, options: QRCodeOptions) {
 		border,
 		borderWidth,
 		background = cmyk(0, 0, 0, 0),
-		backgroundOpacity = 1,
+		// backgroundOpacity = 1,
 		foreground = cmyk(0, 0, 0, 1),
-		foregroundOpacity = 1,
+		// foregroundOpacity = 1,
 		margin = 10,
 		radius = 0,
 		forgroundRadius = 0,
@@ -125,7 +115,7 @@ export async function drawQRCode(page: PDFPage, options: QRCodeOptions) {
 		height,
 		radius,
 		fill: background,
-		fillOpacity: backgroundOpacity,
+		// fillOpacity: backgroundOpacity,
 		stroke: border,
 		strokeWidth: borderWidth,
 		strokeOpacity: 1,
@@ -146,7 +136,7 @@ export async function drawQRCode(page: PDFPage, options: QRCodeOptions) {
 					height: cellHeight,
 					radius: forgroundRadius,
 					fill: foreground,
-					fillOpacity: foregroundOpacity,
+					// fillOpacity: foregroundOpacity,
 					fromTop,
 					isolate,
 				}).pushOperators();
