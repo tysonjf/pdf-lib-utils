@@ -7,7 +7,7 @@
 		"url": "https://github.com/tysonjf/pdf-lib-utils"
 	},
 	"private": false,
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "A collection of utilities for drawing text and shapes in PDF documents using @cantoo/pdf-lib.",
 	"type": "module",
 	"main": "dist/index.cjs",
